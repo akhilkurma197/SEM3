@@ -1,0 +1,24 @@
+{
+  "modelName": "PAGE-INTENT-v1",
+  "modelVersion": "1.0.0",
+  "architecture": "Calibrated Multi-Class Softmax Regression with Temperature Scaling",
+  "trainingDate": "2026-09-30",
+  "datasetVersion": "TRUSTLAYER-PAGE-INTENT-V1",
+  "featuresCount": 20,
+  "classes": [
+    "LOGIN",
+    "PAYMENT",
+    "BANKING",
+    "CHECKOUT",
+    "ACCOUNT_CREATION",
+    "IDENTITY_VERIFICATION",
+    "OTP_VERIFICATION",
+    "DOWNLOAD",
+    "SEARCH",
+    "CONTENT_READING",
+    "CONTACT_FORM",
+    "ERROR_PAGE"
+  ],
+  "abstainThreshold": 0.40,
+  "temperature": 1.15
+}

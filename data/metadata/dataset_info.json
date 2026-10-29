@@ -1,0 +1,22 @@
+{
+  "dataset_name": "TrustLayer-URL-Benchmark-2026",
+  "version": "1.0.0",
+  "sources": [
+    "Kaggle PhiUSIIL Phishing URL Dataset (2024-2025)",
+    "PhishTank Verified Active Feeds",
+    "Tranco / Alexa Top-1M Verified Benign Domains",
+    "Indian & Global Banking Anti-Phishing Advisory Corpus"
+  ],
+  "download_date": "2026-09-30",
+  "license": "CC-BY-4.0 / Open Data",
+  "label_definition": {
+    "0": "LEGITIMATE (Benign, authentic web property)",
+    "1": "PHISHING (Credential harvest, malware dropper, impersonation)"
+  },
+  "total_records": 120,
+  "class_distribution": {
+    "legitimate": 60,
+    "phishing": 60
+  },
+  "validation_strategy": "Domain-Aware Split (Zero domain overlap between Train and Test sets)"
+}

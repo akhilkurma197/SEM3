@@ -1,0 +1,160 @@
+{
+  "version": "1.0.0",
+  "name": "TrustLayer-URL-Rule-Config",
+  "description": "Deterministic URL risk rules with explicit weights, severities, and explanations.",
+  "updatedAt": "2026-10-22T00:00:00Z",
+  "thresholds": {
+    "safeMax": 24,
+    "reviewMax": 59,
+    "phishingMin": 60
+  },
+  "categoryCaps": {
+    "HOST": 45,
+    "STRUCTURE": 30,
+    "LEXICAL": 35,
+    "ENCODING": 35,
+    "OBSCURATION": 25
+  },
+  "rules": [
+    {
+      "id": "URL-RULE-001",
+      "name": "IP_ADDRESS_AS_HOSTNAME",
+      "category": "HOST",
+      "severity": "HIGH",
+      "weight": 35,
+      "condition": "is_ip_address == 1",
+      "explanation": "URL uses an IP address literal instead of a registered domain name, commonly used to bypass domain reputation checks.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-002",
+      "name": "PUNYCODE_IDN_HOMOGLYPH",
+      "category": "HOST",
+      "severity": "HIGH",
+      "weight": 30,
+      "condition": "is_punycode == 1 || has_homoglyphs == 1",
+      "explanation": "Hostname contains Punycode/IDN character representation or homoglyphs that visually mimic legitimate brand names.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-003",
+      "name": "EXCESSIVE_HOSTNAME_ENTROPY",
+      "category": "HOST",
+      "severity": "MEDIUM",
+      "weight": 20,
+      "condition": "hostname_entropy > 3.75",
+      "explanation": "Hostname exhibits elevated Shannon entropy, characteristic of Domain Generation Algorithms (DGA) or randomized hosting.",
+      "evidenceType": "DERIVED"
+    },
+    {
+      "id": "URL-RULE-004",
+      "name": "DEEP_SUBDOMAIN_NESTING",
+      "category": "STRUCTURE",
+      "severity": "MEDIUM",
+      "weight": 18,
+      "condition": "num_subdomains >= 3",
+      "explanation": "URL has 3 or more subdomain tiers, a common structural technique used to embed target brand names into attacker infrastructure.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-005",
+      "name": "BRAND_TOKEN_IN_UNOFFICIAL_DOMAIN",
+      "category": "LEXICAL",
+      "severity": "HIGH",
+      "weight": 25,
+      "condition": "brand_token_count > 0",
+      "explanation": "URL contains recognizable banking/fintech/e-commerce brand names outside of their authoritative registered domain.",
+      "evidenceType": "DERIVED"
+    },
+    {
+      "id": "URL-RULE-006",
+      "name": "SENSITIVE_CREDENTIAL_KEYWORDS",
+      "category": "LEXICAL",
+      "severity": "MEDIUM",
+      "weight": 18,
+      "condition": "sensitive_word_count >= 2",
+      "explanation": "Multiple high-sensitivity action keywords (login, verify, banking, security, update) appear within the path or query string.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-007",
+      "name": "USER_INFO_AT_SYMBOL_INJECTION",
+      "category": "OBSCURATION",
+      "severity": "CRITICAL",
+      "weight": 35,
+      "condition": "num_at_symbols > 0",
+      "explanation": "URL contains '@' symbol preceding the host, an RFC 3986 userinfo syntax often used to disguise the true destination domain.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-008",
+      "name": "EXCESSIVE_URL_LENGTH",
+      "category": "STRUCTURE",
+      "severity": "LOW",
+      "weight": 10,
+      "condition": "url_length > 100",
+      "explanation": "Total URL length exceeds standard web application thresholds, often seen in obfuscated or cloaked phishing links.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-009",
+      "name": "ELEVATED_DIGIT_RATIO",
+      "category": "STRUCTURE",
+      "severity": "LOW",
+      "weight": 12,
+      "condition": "digit_ratio > 0.22",
+      "explanation": "URL contains an unusually high ratio of numeric digits relative to alphabetical characters.",
+      "evidenceType": "DERIVED"
+    },
+    {
+      "id": "URL-RULE-010",
+      "name": "EXCESSIVE_HYPHENATION_SPECIAL_CHARS",
+      "category": "STRUCTURE",
+      "severity": "MEDIUM",
+      "weight": 14,
+      "condition": "num_hyphens >= 3 || special_char_ratio > 0.12",
+      "explanation": "Hostname or path exhibits heavy hyphenation or special character usage to visually simulate official domain naming.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-011",
+      "name": "SUSPICIOUS_REGISTRATION_TLD",
+      "category": "HOST",
+      "severity": "MEDIUM",
+      "weight": 16,
+      "condition": "is_suspicious_tld == 1",
+      "explanation": "URL utilizes a generic TLD (.xyz, .top, .work, .click, etc.) statistically overrepresented in disposable phishing deployments.",
+      "evidenceType": "EXTERNAL"
+    },
+    {
+      "id": "URL-RULE-012",
+      "name": "KNOWN_URL_SHORTENER",
+      "category": "OBSCURATION",
+      "severity": "INFO",
+      "weight": 8,
+      "condition": "is_shortened == 1",
+      "explanation": "URL uses a public shortening service (bit.ly, t.co, tinyurl), masking the eventual destination host from immediate user inspection.",
+      "evidenceType": "EXTERNAL"
+    },
+    {
+      "id": "URL-RULE-013",
+      "name": "NON_STANDARD_HTTP_PORT",
+      "category": "HOST",
+      "severity": "MEDIUM",
+      "weight": 15,
+      "condition": "has_explicit_port == 1 && port != '80' && port != '443'",
+      "explanation": "URL connects to an explicit non-standard HTTP/HTTPS port, bypassing standard perimeter web filters.",
+      "evidenceType": "OBSERVED"
+    },
+    {
+      "id": "URL-RULE-014",
+      "name": "EXCESSIVE_HEX_PERCENT_ENCODING",
+      "category": "ENCODING",
+      "severity": "LOW",
+      "weight": 12,
+      "condition": "num_percent_encoded >= 3",
+      "explanation": "Multiple percent-encoded character entities detected, frequently utilized to evade signature-based keyword filters.",
+      "evidenceType": "OBSERVED"
+    }
+  ]
+}

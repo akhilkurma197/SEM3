@@ -1,0 +1,17 @@
+{
+  "model_version": "url_model_v1.0",
+  "dataset": "TrustLayer-URL-Benchmark-2026",
+  "total_test_samples": 21,
+  "accuracy": 1,
+  "precision": 1,
+  "recall": 1,
+  "f1_score": 1,
+  "roc_auc": 1,
+  "brier_calibration_score": 0.0003,
+  "confusion_matrix": {
+    "tp": 10,
+    "fp": 0,
+    "tn": 11,
+    "fn": 0
+  }
+}

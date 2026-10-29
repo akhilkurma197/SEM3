@@ -1,0 +1,274 @@
+{
+  "model_name": "URL-TABULAR-V1",
+  "model_type": "Calibrated-Logistic-Regression",
+  "schema_version": "url_features_v1.0",
+  "trained_at": "2026-09-30T16:33:46.303Z",
+  "num_features": 28,
+  "bias": 0.047683,
+  "weights": [
+    0.31584,
+    0.594359,
+    -0.362215,
+    -0.061899,
+    0.149148,
+    0.725806,
+    0.084066,
+    0.349117,
+    -0.422984,
+    0,
+    0,
+    -0.071076,
+    -0.046582,
+    -0.119965,
+    0.641746,
+    0.049962,
+    0,
+    -1.146483,
+    0.943545,
+    0.162546,
+    -0.030393,
+    0.317645,
+    -0.03784,
+    0.172367,
+    0.453308,
+    0.224752,
+    0,
+    0
+  ],
+  "scaler": {
+    "means": [
+      41.948718,
+      22.641026,
+      11.333333,
+      0.487179,
+      1.769231,
+      1.102564,
+      0.615385,
+      7.74359,
+      1.589744,
+      0,
+      0,
+      0.615385,
+      0.051282,
+      1.384615,
+      0.025641,
+      0.025641,
+      0,
+      0.487179,
+      0.487179,
+      0.016126,
+      0.188669,
+      3.520262,
+      2.811485,
+      4.111579,
+      0.589744,
+      0.153846,
+      0,
+      0
+    ],
+    "stds": [
+      9.521766,
+      10.642169,
+      7.219395,
+      2.098495,
+      1.120017,
+      1.335797,
+      1.718905,
+      1.462663,
+      0.741376,
+      1,
+      1,
+      1.076923,
+      0.220572,
+      0.664691,
+      0.158062,
+      0.158062,
+      1,
+      0.499836,
+      0.499836,
+      0.048148,
+      0.028604,
+      0.489682,
+      0.851253,
+      0.226122,
+      0.49188,
+      0.360801,
+      1,
+      1
+    ]
+  },
+  "calibration": {
+    "method": "Platt-Sigmoid",
+    "calibrated": true
+  },
+  "feature_importance": [
+    {
+      "name": "has_https",
+      "weight": -1.1465,
+      "abs_impact": 1.1465,
+      "description": "1 if protocol is HTTPS, else 0"
+    },
+    {
+      "name": "has_suspicious_tld",
+      "weight": 0.9435,
+      "abs_impact": 0.9435,
+      "description": "1 if TLD is in high-abuse registrar list, else 0"
+    },
+    {
+      "name": "num_hyphens",
+      "weight": 0.7258,
+      "abs_impact": 0.7258,
+      "description": "Number of hyphen (-) characters in hostname"
+    },
+    {
+      "name": "has_ip_address",
+      "weight": 0.6417,
+      "abs_impact": 0.6417,
+      "description": "1 if hostname is a raw IPv4/IPv6 address, else 0"
+    },
+    {
+      "name": "hostname_length",
+      "weight": 0.5944,
+      "abs_impact": 0.5944,
+      "description": "Character length of the hostname"
+    },
+    {
+      "name": "has_sensitive_keyword",
+      "weight": 0.4533,
+      "abs_impact": 0.4533,
+      "description": "1 if path/query contains sensitive fraud keywords"
+    },
+    {
+      "name": "num_slashes",
+      "weight": -0.423,
+      "abs_impact": 0.423,
+      "description": "Number of slash (/) characters in path"
+    },
+    {
+      "name": "path_length",
+      "weight": -0.3622,
+      "abs_impact": 0.3622,
+      "description": "Character length of the pathname"
+    },
+    {
+      "name": "num_special_chars",
+      "weight": 0.3491,
+      "abs_impact": 0.3491,
+      "description": "Total special characters count in URL"
+    },
+    {
+      "name": "hostname_entropy",
+      "weight": 0.3176,
+      "abs_impact": 0.3176,
+      "description": "Shannon entropy (randomness) of hostname string"
+    },
+    {
+      "name": "url_length",
+      "weight": 0.3158,
+      "abs_impact": 0.3158,
+      "description": "Total character length of the normalized URL"
+    },
+    {
+      "name": "has_brand_token_mismatch",
+      "weight": 0.2248,
+      "abs_impact": 0.2248,
+      "description": "1 if brand keyword in path/subdomain but not official domain"
+    },
+    {
+      "name": "url_entropy",
+      "weight": 0.1724,
+      "abs_impact": 0.1724,
+      "description": "Shannon entropy of entire URL string"
+    },
+    {
+      "name": "digit_ratio",
+      "weight": 0.1625,
+      "abs_impact": 0.1625,
+      "description": "Ratio of digits to total URL length"
+    },
+    {
+      "name": "num_dots",
+      "weight": 0.1491,
+      "abs_impact": 0.1491,
+      "description": "Number of dot (.) characters in URL"
+    },
+    {
+      "name": "num_path_segments",
+      "weight": -0.12,
+      "abs_impact": 0.12,
+      "description": "Count of directory path segments"
+    },
+    {
+      "name": "num_digits",
+      "weight": 0.0841,
+      "abs_impact": 0.0841,
+      "description": "Total digit count in URL"
+    },
+    {
+      "name": "num_subdomains",
+      "weight": -0.0711,
+      "abs_impact": 0.0711,
+      "description": "Count of subdomain levels"
+    },
+    {
+      "name": "query_length",
+      "weight": -0.0619,
+      "abs_impact": 0.0619,
+      "description": "Character length of the query string"
+    },
+    {
+      "name": "has_punycode",
+      "weight": 0.05,
+      "abs_impact": 0.05,
+      "description": "1 if hostname contains punycode (xn--) or non-ASCII, else 0"
+    },
+    {
+      "name": "num_parameters",
+      "weight": -0.0466,
+      "abs_impact": 0.0466,
+      "description": "Count of query parameters"
+    },
+    {
+      "name": "path_entropy",
+      "weight": -0.0378,
+      "abs_impact": 0.0378,
+      "description": "Shannon entropy of path string"
+    },
+    {
+      "name": "special_char_ratio",
+      "weight": -0.0304,
+      "abs_impact": 0.0304,
+      "description": "Ratio of special chars to total URL length"
+    },
+    {
+      "name": "num_at_symbols",
+      "weight": 0,
+      "abs_impact": 0,
+      "description": "Count of @ symbols (credential injection)"
+    },
+    {
+      "name": "num_percent_encoded",
+      "weight": 0,
+      "abs_impact": 0,
+      "description": "Count of % hex-encoded character sequences"
+    },
+    {
+      "name": "has_port",
+      "weight": 0,
+      "abs_impact": 0,
+      "description": "1 if non-standard port specified in URL, else 0"
+    },
+    {
+      "name": "is_url_shortener",
+      "weight": 0,
+      "abs_impact": 0,
+      "description": "1 if domain is a known URL shortening service"
+    },
+    {
+      "name": "has_homoglyphs",
+      "weight": 0,
+      "abs_impact": 0,
+      "description": "1 if hostname contains lookalike Cyrillic/Greek characters"
+    }
+  ]
+}

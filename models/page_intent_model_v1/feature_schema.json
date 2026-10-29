@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "page_intent_features_v1.1",
+  "numFeatures": 23,
+  "features": [
+    { "index": 0, "name": "dom_node_count", "type": "numeric", "description": "Total number of DOM elements in document" },
+    { "index": 1, "name": "num_forms", "type": "integer", "description": "Count of interactive HTML form elements" },
+    { "index": 2, "name": "num_inputs", "type": "integer", "description": "Count of visible, user-editable input elements" },
+    { "index": 3, "name": "num_buttons", "type": "integer", "description": "Count of CTA action buttons" },
+    { "index": 4, "name": "num_scripts", "type": "integer", "description": "Count of loaded script tags" },
+    { "index": 5, "name": "num_iframes", "type": "integer", "description": "Count of embedded iframe frames" },
+    { "index": 6, "name": "has_password", "type": "binary", "description": "Presence of password or credential field" },
+    { "index": 7, "name": "has_otp", "type": "binary", "description": "Presence of OTP / 2FA / PIN verification field" },
+    { "index": 8, "name": "has_card", "type": "binary", "description": "Presence of credit/debit card number field" },
+    { "index": 9, "name": "has_cvv", "type": "binary", "description": "Presence of card security code field" },
+    { "index": 10, "name": "has_kyc", "type": "binary", "description": "Presence of national ID / passport / tax document field" },
+    { "index": 11, "name": "has_search", "type": "binary", "description": "Presence of search query input" },
+    { "index": 12, "name": "has_email", "type": "binary", "description": "Presence of email address input" },
+    { "index": 13, "name": "has_textarea", "type": "binary", "description": "Presence of multi-line message or comment area" },
+    { "index": 14, "name": "keyword_login", "type": "binary", "description": "Presence of login/signin/auth tokens in title/headings" },
+    { "index": 15, "name": "keyword_banking", "type": "binary", "description": "Presence of banking/netbanking tokens in title/headings" },
+    { "index": 16, "name": "keyword_payment", "type": "binary", "description": "Presence of checkout/pay/card tokens in title/headings" },
+    { "index": 17, "name": "keyword_download", "type": "binary", "description": "Primary download software/installer intent in title/h1" },
+    { "index": 18, "name": "keyword_search", "type": "binary", "description": "Presence of search engine tokens in title/headings" },
+    { "index": 19, "name": "has_external_post", "type": "binary", "description": "Presence of form action posting to external origin" },
+    { "index": 20, "name": "keyword_documentation", "type": "binary", "description": "Presence of documentation, guide, reference, api tokens" },
+    { "index": 21, "name": "keyword_developer", "type": "binary", "description": "Presence of developer, repository, code, sdk tokens" },
+    { "index": 22, "name": "keyword_portal", "type": "binary", "description": "Presence of community portal, foundation, homepage tokens" }
+  ]
+}

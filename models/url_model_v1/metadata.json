@@ -1,0 +1,5 @@
+{
+  "dataset_version": "1.0.0",
+  "training_strategy": "L2-Regularized Gradient Descent with Domain-Aware Stratification",
+  "author": "Trust Layer Forensic ML Team"
+}

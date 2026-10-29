@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shortcut Tiles Test - Trust Layer</title>
+  <style>
+    body {
+      background: #1e2430;
+      color: white;
+      font-family: sans-serif;
+      padding: 40px;
+    }
+    .shortcuts-grid {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .tile {
+      width: 110px;
+      height: 110px;
+      background: #2a3245;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      position: relative;
+    }
+    .tile:hover {
+      background: #364159;
+    }
+    .icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #181d28;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .label {
+      font-size: 13px;
+      color: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <h2>Shortcut Cards & Button Tiles Test Workbench</h2>
+  <p>Hover over the LeetCode and GitHub tiles below to see Trust Layer's real-time threat detection popup:</p>
+
+  <div class="shortcuts-grid">
+    <!-- LeetCode Shortcut Tile -->
+    <a href="https://leetcode.com" style="text-decoration: none;">
+      <div class="tile">
+        <div class="icon">💻</div>
+        <span class="label">leetcode</span>
+      </div>
+    </a>
+
+    <!-- GitHub Shortcut Tile -->
+    <a href="https://github.com" style="text-decoration: none;">
+      <div class="tile">
+        <div class="icon">🐙</div>
+        <span class="label">GitHub</span>
+      </div>
+    </a>
+
+    <!-- Phishing Fake LeetCode Tile -->
+    <a href="http://leetcode-verify-account.xyz/login" style="text-decoration: none;">
+      <div class="tile">
+        <div class="icon">⚠️</div>
+        <span class="label">Fake LeetCode</span>
+      </div>
+    </a>
+
+    <!-- Phishing Fake GitHub Tile -->
+    <a href="http://github-security-alert.top/verify" style="text-decoration: none;">
+      <div class="tile">
+        <div class="icon">🚨</div>
+        <span class="label">Fake GitHub</span>
+      </div>
+    </a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+[
+  {
+    "name": "url_length",
+    "type": "numeric",
+    "description": "Total character length of the normalized URL"
+  },
+  {
+    "name": "hostname_length",
+    "type": "numeric",
+    "description": "Character length of the hostname"
+  },
+  {
+    "name": "path_length",
+    "type": "numeric",
+    "description": "Character length of the pathname"
+  },
+  {
+    "name": "query_length",
+    "type": "numeric",
+    "description": "Character length of the query string"
+  },
+  {
+    "name": "num_dots",
+    "type": "numeric",
+    "description": "Number of dot (.) characters in URL"
+  },
+  {
+    "name": "num_hyphens",
+    "type": "numeric",
+    "description": "Number of hyphen (-) characters in hostname"
+  },
+  {
+    "name": "num_digits",
+    "type": "numeric",
+    "description": "Total digit count in URL"
+  },
+  {
+    "name": "num_special_chars",
+    "type": "numeric",
+    "description": "Total special characters count in URL"
+  },
+  {
+    "name": "num_slashes",
+    "type": "numeric",
+    "description": "Number of slash (/) characters in path"
+  },
+  {
+    "name": "num_at_symbols",
+    "type": "numeric",
+    "description": "Count of @ symbols (credential injection)"
+  },
+  {
+    "name": "num_percent_encoded",
+    "type": "numeric",
+    "description": "Count of % hex-encoded character sequences"
+  },
+  {
+    "name": "num_subdomains",
+    "type": "numeric",
+    "description": "Count of subdomain levels"
+  },
+  {
+    "name": "num_parameters",
+    "type": "numeric",
+    "description": "Count of query parameters"
+  },
+  {
+    "name": "num_path_segments",
+    "type": "numeric",
+    "description": "Count of directory path segments"
+  },
+  {
+    "name": "has_ip_address",
+    "type": "binary",
+    "description": "1 if hostname is a raw IPv4/IPv6 address, else 0"
+  },
+  {
+    "name": "has_punycode",
+    "type": "binary",
+    "description": "1 if hostname contains punycode (xn--) or non-ASCII, else 0"
+  },
+  {
+    "name": "has_port",
+    "type": "binary",
+    "description": "1 if non-standard port specified in URL, else 0"
+  },
+  {
+    "name": "has_https",
+    "type": "binary",
+    "description": "1 if protocol is HTTPS, else 0"
+  },
+  {
+    "name": "has_suspicious_tld",
+    "type": "binary",
+    "description": "1 if TLD is in high-abuse registrar list, else 0"
+  },
+  {
+    "name": "digit_ratio",
+    "type": "numeric",
+    "description": "Ratio of digits to total URL length"
+  },
+  {
+    "name": "special_char_ratio",
+    "type": "numeric",
+    "description": "Ratio of special chars to total URL length"
+  },
+  {
+    "name": "hostname_entropy",
+    "type": "numeric",
+    "description": "Shannon entropy (randomness) of hostname string"
+  },
+  {
+    "name": "path_entropy",
+    "type": "numeric",
+    "description": "Shannon entropy of path string"
+  },
+  {
+    "name": "url_entropy",
+    "type": "numeric",
+    "description": "Shannon entropy of entire URL string"
+  },
+  {
+    "name": "has_sensitive_keyword",
+    "type": "binary",
+    "description": "1 if path/query contains sensitive fraud keywords"
+  },
+  {
+    "name": "has_brand_token_mismatch",
+    "type": "binary",
+    "description": "1 if brand keyword in path/subdomain but not official domain"
+  },
+  {
+    "name": "is_url_shortener",
+    "type": "binary",
+    "description": "1 if domain is a known URL shortening service"
+  },
+  {
+    "name": "has_homoglyphs",
+    "type": "binary",
+    "description": "1 if hostname contains lookalike Cyrillic/Greek characters"
+  }
+]

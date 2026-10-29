@@ -1,0 +1,10 @@
+{
+  "name": "trustlayer-browser-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Trust Layer Isolated Browser Worker",
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

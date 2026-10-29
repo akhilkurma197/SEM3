@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trust Layer - AI Fraud Prevention</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="shield-icon">🛡️</span>
+        <div>
+          <h1>TRUST LAYER</h1>
+          <span class="subtitle">AI Fraud Prevention System</span>
+        </div>
+      </div>
+      <div class="status-badge live" id="current-site-badge">Active</div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-link">🔗 Link X-Ray</button>
+      <button class="tab-btn" data-tab="tab-qr">📱 QR Guardian</button>
+      <button class="tab-btn" data-tab="tab-payment">💳 Payment Verifier</button>
+    </nav>
+
+    <!-- TAB 1: Link & Redirect X-Ray -->
+    <section id="tab-link" class="tab-content active">
+      <div class="card">
+        <h3>2-Tier Phishing & Impersonation Detector</h3>
+        <p class="card-desc">Evaluates ML lexical features (Tier 1) and traces non-rendering HTTP redirect hops (Tier 2).</p>
+        
+        <div class="input-group">
+          <input type="text" id="url-input" placeholder="Paste link (e.g., http://hdfc-netbanking-verify.xyz)..." />
+          <button id="scan-url-btn" class="btn primary">Scan Link</button>
+        </div>
+
+        <div class="sample-pills">
+          <span class="pill-label">Test Samples:</span>
+          <button class="sample-btn bad" data-sample="http://hdfc-netbanking-verify.xyz/login.php">⚠️ Phishing Link</button>
+          <button class="sample-btn bad" data-sample="http://pаypal-security-update.top/verify">⚠️ Homoglyph Link</button>
+          <button class="sample-btn good" data-sample="https://www.hdfcbank.com">✅ Official HDFC Link</button>
+        </div>
+      </div>
+
+      <div id="link-report-container" class="report-container"></div>
+    </section>
+
+    <!-- TAB 2: QR Guardian -->
+    <section id="tab-qr" class="tab-content">
+      <div class="card">
+        <h3>Quishing & QR Payload Inspection</h3>
+        <p class="card-desc">Decodes QR code contents locally without executing malicious URLs.</p>
+
+        <div class="upload-box" id="qr-dropzone">
+          <span class="upload-icon">📷</span>
+          <p>Click or Drop QR Code Image here</p>
+          <input type="file" id="qr-file-input" accept="image/*" hidden />
+        </div>
+
+        <div class="sample-pills">
+          <span class="pill-label">Test QR Samples:</span>
+          <button class="sample-btn bad" id="sample-qr-phishing">⚠️ Phishing QR</button>
+          <button class="sample-btn good" id="sample-qr-upi">📱 UPI Payment QR</button>
+        </div>
+      </div>
+
+      <div id="qr-report-container" class="report-container"></div>
+    </section>
+
+    <!-- TAB 3: Payment Verifier -->
+    <section id="tab-payment" class="tab-content">
+      <div class="card">
+        <h3>Payment Screenshot Forensics (ELA + OCR)</h3>
+        <p class="card-desc">Detects Error Level Analysis compression tampering and invalid UTR/UPI numbers.</p>
+
+        <div class="upload-box" id="payment-dropzone">
+          <span class="upload-icon">🧾</span>
+          <p>Click or Drop Payment Screenshot here</p>
+          <input type="file" id="payment-file-input" accept="image/*" hidden />
+        </div>
+
+        <div class="sample-pills">
+          <span class="pill-label">Test Screenshot Samples:</span>
+          <button class="sample-btn bad" id="sample-payment-fake">🚨 Fake UPI Proof (Edited UTR)</button>
+          <button class="sample-btn good" id="sample-payment-real">✅ Genuine Receipt</button>
+        </div>
+      </div>
+
+      <div id="ela-preview-card" class="card hidden">
+        <h4>Error Level Analysis (ELA) Heatmap:</h4>
+        <p class="card-desc">Bright white/red noise indicates localized digital alteration (tampering).</p>
+        <div class="canvas-wrapper">
+          <canvas id="ela-canvas"></canvas>
+        </div>
+      </div>
+
+      <div id="payment-report-container" class="report-container"></div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>Trust Layer v1.0 • Pre-Action Verification</span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

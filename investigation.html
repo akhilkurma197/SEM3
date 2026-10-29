@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trust Layer — Unified Digital Fraud Investigation Workstation</title>
+<meta name="description" content="ML-Based Sandboxed Digital Fraud Investigation Platform: URL Intelligence, Webpage Autopsy, Page Intent ML, Data Flow Mapping, and Forensic Telemetry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── DESIGN SYSTEM: INDUSTRIAL CYBER FORENSICS ── */
+:root {
+  --bg-deep: #06090d;
+  --bg-sidebar: #090d13;
+  --bg-header: #0a0e14;
+  --bg-panel: #0d1219;
+  --bg-card: #111822;
+  --bg-raised: #16202c;
+  --bg-hover: #1c2837;
+
+  --border: rgba(255,255,255,0.08);
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-focus: #38bdf8;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --blue: #38bdf8;
+  --blue-dim: rgba(56,189,248,0.12);
+  --green: #10b981;
+  --green-dim: rgba(16,185,129,0.12);
+  --red: #f43f5e;
+  --red-dim: rgba(244,63,94,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --purple: #a855f7;
+  --purple-dim: rgba(168,85,247,0.12);
+  --cyan: #06b6d4;
+  --yellow: #eab308;
+  --yellow-dim: rgba(234, 179, 8, 0.15);
+  --cyan-dim: rgba(6,182,212,0.12);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, Menlo, monospace;
+
+  --sidebar-w: 250px;
+  --header-h: 52px;
+  --statusbar-h: 28px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; line-height: 1.5; }
+
+/* ── APP LAYOUT ── */
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── PERSISTENT TOP HEADER ── */
+.top-header {
+  height: var(--header-h); background: var(--bg-header); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 18px; z-index: 50; flex-shrink: 0;
+}
+.header-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand-badge-icon {
+  width: 30px; height: 30px; background: linear-gradient(135deg, #0284c7, #6366f1);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 0 14px rgba(56,189,248,0.3);
+}
+.brand-name { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #fff; display: flex; align-items: center; gap: 6px; }
+.brand-tag { font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--blue); background: var(--blue-dim); padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(56,189,248,0.25); }
+
+.header-center-info { display: flex; align-items: center; gap: 12px; font-family: var(--font-mono); font-size: 11px; }
+.case-id-pill { background: var(--bg-panel); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; color: var(--blue); font-weight: 700; }
+.case-target-display { color: var(--text-secondary); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.mode-select-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.mode-select-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+}
+.mode-select-btn.active-mode-a {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 10px rgba(56,189,248,0.3) !important;
+}
+.mode-select-btn.active-mode-c {
+  background: #eab308 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  border-color: #facc15 !important;
+  box-shadow: 0 0 14px rgba(234,179,8,0.5) !important;
+}
+.btn {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-primary); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;
+}
+.btn:hover { background: var(--bg-hover); border-color: var(--border-focus); color: #fff; }
+.btn-primary { background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8; color: #fff; }
+.btn-primary:hover { background: linear-gradient(135deg, #0369a1, #1d4ed8); box-shadow: 0 0 12px rgba(56,189,248,0.4); }
+.btn-danger { background: var(--red-dim); border-color: rgba(244,63,94,0.4); color: var(--red); }
+.btn-danger:hover { background: var(--red); color: #fff; }
+
+/* ── BODY WRAPPER (SIDEBAR + MAIN CONTENT) ── */
+.app-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* ── PERSISTENT LEFT SIDEBAR ── */
+.app-sidebar {
+  width: var(--sidebar-w); background: var(--bg-sidebar); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; z-index: 40;
+}
+.sidebar-scroll { flex: 1; overflow-y: auto; padding: 12px 8px; display: flex; flex-direction: column; gap: 16px; }
+.sidebar-group-title { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 4px; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 4px;
+  color: var(--text-secondary); text-decoration: none; font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; transition: all 0.15s ease; user-select: none;
+}
+.nav-item:hover { background: var(--bg-raised); color: var(--text-primary); }
+.nav-item.active { background: var(--blue-dim); color: var(--blue); border-color: rgba(56,189,248,0.3); font-weight: 600; }
+.nav-item-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.nav-badge { margin-left: auto; font-family: var(--font-mono); font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+
+.sidebar-footer {
+  padding: 12px 14px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.2); font-family: var(--font-mono); font-size: 10px;
+}
+.sys-status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); }
+.sys-status-val { font-weight: 700; }
+.sys-status-val.ok { color: var(--green); }
+
+/* ── MAIN WORKSPACE AREA ── */
+.app-workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-deep); overflow-y: auto; position: relative; }
+.view-pane { display: none; padding: 20px 24px; flex-direction: column; gap: 16px; min-height: 100%; }
+.view-pane.active { display: flex; animation: viewFadeIn 0.2s cubic-bezier(0.16,1,0.3,1) both; }
+@keyframes viewFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── FORENSIC CARDS & MATRICES ── */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; }
+.card-title { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+
+/* ── HUMAN-FIRST FINDINGS BANNER ── */
+.findings-banner {
+  background: linear-gradient(135deg, rgba(13,18,25,0.95), rgba(22,32,44,0.95));
+  border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.findings-banner.CRITICAL { border-color: rgba(244,63,94,0.5); background: linear-gradient(135deg, rgba(244,63,94,0.1), rgba(13,18,25,0.95)); }
+.findings-banner.HIGH { border-color: rgba(245,158,11,0.5); background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(13,18,25,0.95)); }
+.findings-banner.LOW { border-color: rgba(16,185,129,0.4); background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(13,18,25,0.95)); }
+.findings-banner.INCOMPLETE { border-color: rgba(100,116,139,0.4); background: linear-gradient(135deg, rgba(100,116,139,0.08), rgba(13,18,25,0.95)); }
+
+.finding-header { display: flex; align-items: center; justify-content: space-between; }
+.finding-headline { font-size: 14px; font-weight: 700; color: #fff; }
+.finding-explanation { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; }
+.finding-why { background: rgba(0,0,0,0.3); border-radius: 4px; padding: 10px 12px; font-size: 11.5px; color: var(--text-primary); border-left: 3px solid var(--blue); }
+
+/* ── BADGES & LABELS ── */
+.badge { font-family: var(--font-mono); font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; border: 1px solid; display: inline-flex; align-items: center; gap: 4px; }
+.badge.OBSERVED { background: var(--green-dim); color: var(--green); border-color: rgba(16,185,129,0.3); }
+.badge.MODEL { background: var(--blue-dim); color: var(--blue); border-color: rgba(56,189,248,0.3); }
+.badge.EXTERNAL { background: var(--purple-dim); color: var(--purple); border-color: rgba(168,85,247,0.3); }
+.badge.DERIVED { background: var(--cyan-dim); color: var(--cyan); border-color: rgba(6,182,212,0.3); }
+.badge.INFERRED { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.3); }
+.badge.SIMULATED { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.4); }
+.badge.CRITICAL { background: var(--red-dim); color: var(--red); border-color: rgba(244,63,94,0.4); }
+.badge.HIGH { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.4); }
+.badge.LOW { background: var(--green-dim); color: var(--green); border-color: rgba(16,185,129,0.3); }
+.badge.UNKNOWN { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border); }
+
+/* ── TABLES ── */
+.tech-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.tech-table th { text-align: left; padding: 7px 10px; background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+.tech-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); vertical-align: middle; }
+.tech-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── FIELD GRIDS ── */
+.field-grid { display: grid; grid-template-columns: 170px 1fr; gap: 8px 14px; font-family: var(--font-mono); font-size: 11.5px; align-items: center; }
+.field-key { color: var(--text-muted); font-size: 11px; }
+.field-val { color: var(--text-primary); word-break: break-all; }
+
+/* ── STAGE COVERAGE MATRIX ── */
+.cov-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cov-item { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 8px; text-align: center; font-family: var(--font-mono); }
+.cov-name { font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+.cov-status { font-size: 10.5px; font-weight: 700; }
+.cov-status.COMPLETED { color: var(--green); }
+.cov-status.FAILED { color: var(--red); }
+.cov-status.NOT_RUN, .cov-status.SKIPPED { color: var(--text-muted); }
+.cov-status.RUNNING { color: var(--blue); }
+
+/* ── MODALS & DRAWERS ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+  width: 90%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6); overflow: hidden;
+}
+.modal-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); }
+.modal-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+.modal-body { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── RECENT CASES DRAWER ── */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; display: flex; justify-content: flex-end; }
+.drawer-overlay.hidden { display: none; }
+.drawer-box {
+  width: 440px; height: 100%; background: var(--bg-panel); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.6);
+}
+
+/* ── STATUS BAR ── */
+.bottom-statusbar {
+  height: var(--statusbar-h); background: #05080c; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+}
+.status-indicator-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.hidden { display: none !important; }
+.empty-state { padding: 24px; text-align: center; color: var(--text-muted); font-family: var(--font-mono); font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- 1. PERSISTENT TOP HEADER -->
+  <header class="top-header">
+    <div class="header-brand" style="display:flex;align-items:center;gap:12px;">
+      <a href="/" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.35);border-radius:4px;color:#38bdf8;font-size:11px;font-family:var(--font-mono);font-weight:700;transition:all 0.15s;white-space:nowrap;" title="Return to Main Dashboard">
+        ← Home Dashboard
+      </a>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="brand-badge-icon">🛡️</div>
+        <div class="brand-name">
+          TRUST LAYER
+          <span class="brand-tag">v2.2 UNIFIED WORKSTATION</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center-info">
+      <span class="case-id-pill" id="hdr-case-id">NO ACTIVE CASE</span>
+      <span class="case-target-display" id="hdr-target-display">Ready for digital fraud investigation</span>
+      <span class="badge UNKNOWN" id="hdr-state-pill">IDLE</span>
+
+      <!-- DUAL MODE SELECTOR BUTTONS -->
+      <div class="header-mode-selector" style="display:inline-flex;align-items:center;background:#090d13;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px;gap:2px;">
+        <button id="btn-hdr-mode-a" class="mode-select-btn active-mode-a" onclick="switchInspectionMode('URL_ONLY')" title="Mode A: Safe URL lexical & reputation heuristics without connecting to target">
+          <span style="font-size:11px;">📄</span> Mode A: URL-Only
+        </button>
+        <button id="btn-hdr-mode-c" class="mode-select-btn" onclick="switchInspectionMode('ISOLATED_LIVE')" title="Mode C: Render dynamic DOM & capture browser screenshot">
+          <span style="font-size:11px;">🔬</span> Mode C: Live Inspect
+        </button>
+      </div>
+
+      <button class="btn btn-danger" id="btn-cancel-live" style="display:none;padding:4px 10px;font-size:11px;" onclick="handleCancelLive()">⏹ Cancel Live</button>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btn-new-case"><span>+</span> NEW CASE</button>
+      <button class="btn" id="btn-case-history">📂 CASE HISTORY</button>
+      <button class="btn" id="btn-export-report">📋 EXPORT</button>
+    </div>
+  </header>
+
+  <!-- 2. BODY LAYOUT: SIDEBAR + MAIN WORKSPACE -->
+  <div class="app-body">
+
+    <!-- PERSISTENT LEFT SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-scroll">
+
+        <!-- RETURN NAVIGATION -->
+        <div style="padding:0 4px;margin-bottom:8px;">
+          <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:4px;color:#38bdf8;font-size:11px;font-family:var(--font-mono);font-weight:700;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);transition:all 0.2s;" title="Return to Main Dashboard & Scanner">
+            <span>←</span><span>Platform Dashboard</span>
+          </a>
+        </div>
+
+        <!-- MAIN INVESTIGATION -->
+        <div>
+          <div class="sidebar-group-title">Investigation Core</div>
+          <nav class="sidebar-nav">
+            <div class="nav-item active" data-view="overview">
+              <span class="nav-item-icon">🏠</span><span>Command Center</span>
+            </div>
+            <div class="nav-item" data-view="url">
+              <span class="nav-item-icon">🔗</span><span>URL Intelligence</span>
+            </div>
+            <div class="nav-item" data-view="rulediag">
+              <span class="nav-item-icon">⚖️</span><span>Rule Diagnostics</span>
+            </div>
+            <div class="nav-item" data-view="domain">
+              <span class="nav-item-icon">🌐</span><span>Domain &amp; Host</span>
+            </div>
+            <div class="nav-item" data-view="http">
+              <span class="nav-item-icon">📡</span><span>HTTP Trace</span>
+            </div>
+            <div class="nav-item" data-view="website">
+              <span class="nav-item-icon">🕸</span><span>Website Intelligence</span>
+            </div>
+            <div class="nav-item" data-view="network">
+              <span class="nav-item-icon">📶</span><span>Network &amp; Behavior</span>
+            </div>
+            <div class="nav-item" data-view="intent">
+              <span class="nav-item-icon">🧠</span><span>Page Intent ML</span>
+            </div>
+            <div class="nav-item" data-view="identity">
+              <span class="nav-item-icon">🪪</span><span>Identity &amp; Entity</span>
+            </div>
+            <div class="nav-item" data-view="dataflow">
+              <span class="nav-item-icon">🧬</span><span>Data Flow Topology</span>
+            </div>
+            <div class="nav-item" data-view="breakpoints">
+              <span class="nav-item-icon">🚨</span><span>Trust Breakpoints</span>
+              <span class="nav-badge badge CRITICAL hidden" id="side-bp-count">0</span>
+            </div>
+            <div class="nav-item" data-view="evidence">
+              <span class="nav-item-icon">🧾</span><span>Evidence Ledger</span>
+              <span class="nav-badge badge MODEL" id="side-ev-count">0</span>
+            </div>
+            <div class="nav-item" data-view="graph">
+              <span class="nav-item-icon">🕸</span><span>Relationship Graph</span>
+            </div>
+            <div class="nav-item" data-view="timeline">
+              <span class="nav-item-icon">🕒</span><span>Forensic Timeline</span>
+            </div>
+            <div class="nav-item" data-view="deception">
+              <span class="nav-item-icon">🎭</span><span>Deception Path</span>
+            </div>
+          </nav>
+        </div>
+
+        <!-- SPECIALIZED MODULES -->
+        <div>
+          <div class="sidebar-group-title">Specialized Tools</div>
+          <nav class="sidebar-nav">
+            <div class="nav-item" data-view="qr">
+              <span class="nav-item-icon">📷</span><span>QR Guardian &amp; Scanner</span>
+            </div>
+            <div class="nav-item" data-view="payment">
+              <span class="nav-item-icon">💳</span><span>Payment &amp; UPI Analysis</span>
+            </div>
+            <div class="nav-item" data-view="report">
+              <span class="nav-item-icon">📄</span><span>Forensic Report</span>
+            </div>
+            <div class="nav-item" data-view="modelresearch">
+              <span class="nav-item-icon">🧪</span><span>Model Research</span>
+            </div>
+          </nav>
+        </div>
+
+      </div>
+
+      <!-- SIDEBAR SYSTEM STATUS (PINNED BOTTOM) -->
+      <div class="sidebar-footer">
+        <div class="sys-status-row"><span>Engine:</span><span class="sys-status-val ok">READY (3000)</span></div>
+        <div class="sys-status-row"><span>URL Model:</span><span class="sys-status-val ok">URL-TABULAR-V1</span></div>
+        <div class="sys-status-row"><span>Page Model:</span><span class="sys-status-val ok">PAGE-INTENT-V1</span></div>
+        <div class="sys-status-row"><span>Sandbox:</span><span class="sys-status-val ok">ISOLATED</span></div>
+      </div>
+    </aside>
+
+    <!-- MAIN CENTRAL WORKSPACE -->
+    <main class="app-workspace" id="app-workspace">
+
+      <!-- 1. COMMAND CENTER (OVERVIEW) -->
+            <section class="view-pane active" id="view-overview">
+        <!-- Human-First Findings Banner -->
+        <div class="findings-banner UNKNOWN" id="ov-findings-banner">
+          <div class="finding-header">
+            <span class="finding-headline" id="ov-finding-headline">Awaiting Investigation Intake</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="badge UNKNOWN" id="ov-risk-badge">UNKNOWN</span>
+              <span id="ov-rule-score-pill" style="display:none;align-items:center;gap:5px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 10px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:#38bdf8;">
+                🔢 Rule Score: <span id="ov-rule-score-val">—</span> / 100 &nbsp;
+                <span id="ov-rule-class-badge" style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:#1e293b;color:#94a3b8;border:1px solid #334155;">—</span>
+              </span>
+            </div>
+          </div>
+          <div class="finding-explanation" id="ov-finding-explanation">
+            Initialize an investigation case with a URL or QR payload to reconstruct the full forensic evidence chain.
+          </div>
+          <div class="finding-why" id="ov-finding-why" style="display:none;"></div>
+        </div>
+
+        <!-- Stage Coverage Grid -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Investigation Stage Coverage</span></div>
+          <div class="cov-grid" id="ov-coverage-grid">
+            <div class="cov-item"><div class="cov-name">URL</div><div class="cov-status PENDING" id="cov-url">PENDING</div></div>
+            <div class="cov-item"><div class="cov-name">Domain</div><div class="cov-status PENDING" id="cov-host">PENDING</div></div>
+            <div class="cov-item"><div class="cov-name">HTTP</div><div class="cov-status PENDING" id="cov-http">PENDING</div></div>
+            <div class="cov-item"><div class="cov-name">Website</div><div class="cov-status NOT_RUN" id="cov-website">NOT RUN</div></div>
+            <div class="cov-item"><div class="cov-name">Network</div><div class="cov-status NOT_RUN" id="cov-network">NOT RUN</div></div>
+            <div class="cov-item"><div class="cov-name">Identity</div><div class="cov-status PENDING" id="cov-identity">PENDING</div></div>
+            <div class="cov-item"><div class="cov-name">Evidence</div><div class="cov-status PENDING" id="cov-evidence">PENDING</div></div>
+          </div>
+        </div>
+
+        <!-- Page Intelligence Summary Card -->
+        <div class="card" id="ov-page-intelligence-summary" style="display:none;">
+          <div class="card-header">
+            <span class="card-title" style="color:var(--blue);">🔍 Scanned Page Intelligence Summary</span>
+            <span class="badge MODEL" id="ov-summary-intent-badge">INTENT</span>
+          </div>
+          <div id="ov-summary-content" style="font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--text-primary);white-space:pre-wrap;"></div>
+        </div>
+
+        <!-- Trust Breakpoints Container -->
+        <div id="ov-breakpoints-container"></div>
+
+        <!-- Quick Summary Columns -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Top Registered Evidence</span></div>
+            <div id="ov-top-evidence"><div class="empty-state">No evidence records registered yet.</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Forensic Navigation Shortcuts</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <button class="btn btn-primary" onclick="switchView('url')">→ View 28-D URL Lexical Feature Matrix</button>
+              <button class="btn btn-primary" onclick="switchView('domain')">→ Inspect Host DNS &amp; IP Infrastructure</button>
+              <button class="btn btn-primary" onclick="switchView('website')">→ Examine Excavated DOM Forms &amp; Scripts</button>
+              <button class="btn btn-primary" onclick="switchView('dataflow')">→ View Interactive Input Destination Routing</button>
+              <button class="btn btn-primary" onclick="switchView('graph')">→ Open Interactive Evidence Graph</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-url">
+        <div id="url-native-banner" style="display:none;margin-bottom:12px;padding:12px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:8px;font-size:12px;line-height:1.6;">
+          <strong style="color:var(--blue);">ℹ️ Native Protocol Target (Non-HTTP)</strong>
+          <div id="url-native-desc" style="color:var(--text-secondary);margin-top:4px;"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">1. RFC-Compliant URL Anatomy</span></div>
+            <div class="field-grid">
+              <span class="field-key">Raw Target:</span><span class="field-val" id="url-raw">—</span>
+              <span class="field-key">Normalized URL:</span><span class="field-val" id="url-norm">—</span>
+              <span class="field-key">Protocol:</span><span class="field-val" id="url-proto">—</span>
+              <span class="field-key">Hostname:</span><strong class="field-val" id="url-host" style="color:var(--blue);">—</strong>
+              <span class="field-key">Port:</span><span class="field-val" id="url-port">Standard (80/443)</span>
+              <span class="field-key">Pathname:</span><span class="field-val" id="url-path">—</span>
+              <span class="field-key">Query String:</span><span class="field-val" id="url-query">None</span>
+              <span class="field-key">Fragment:</span><span class="field-val" id="url-frag">None</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">2. Calibrated URL Model Inference (ML)</span></div>
+            <div class="field-grid">
+              <span class="field-key">Model Engine:</span><span class="field-val" id="url-model-name">—</span>
+              <span class="field-key">Decision:</span><strong class="field-val" id="url-model-pred">—</strong>
+              <span class="field-key">P(Phishing):</span><span class="field-val" id="url-model-prob-phish">—</span>
+              <span class="field-key">P(Legitimate):</span><span class="field-val" id="url-model-prob-legit">—</span>
+              <span class="field-key">Confidence Level:</span><span class="field-val" id="url-model-conf">—</span>
+              <span class="field-key">Abstention Status:</span><span class="field-val" id="url-model-abstain">NO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deterministic URL Rule Engine Card -->
+        <div class="card" style="margin-top:14px;">
+          <div class="card-header">
+            <span class="card-title">3. Deterministic URL Rule Engine &amp; Per-Rule Ledger</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="badge UNKNOWN" id="url-rule-badge">NOT EVALUATED</span>
+              <span class="badge" id="url-rule-score-badge" style="background:#1e293b;color:#38bdf8;font-family:monospace;border:1px solid #334155;">0 / 100</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;" id="url-rule-expl">
+            Evaluates deterministic, explainable risk rules with per-category caps and explicit point weights.
+          </div>
+          <table class="tech-table">
+            <thead>
+              <tr><th>Rule ID</th><th>Rule Name</th><th>Category</th><th>Severity</th><th>Observed Value</th><th>Score Contribution</th><th>Rule Rationale</th></tr>
+            </thead>
+            <tbody id="url-rules-tbody">
+              <tr><td colspan="7" class="empty-state">No rules evaluated yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <div class="card-header"><span class="card-title">4. 28-Dimensional Lexical &amp; Structural Feature Matrix</span></div>
+          <table class="tech-table">
+            <thead>
+              <tr><th>Feature Name</th><th>Type</th><th>Extracted Value</th><th>Forensic Context</th></tr>
+            </thead>
+            <tbody id="url-features-tbody">
+              <tr><td colspan="4" class="empty-state">No features extracted yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-domain">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Host Infrastructure &amp; Routing</span></div>
+          <div class="field-grid">
+            <span class="field-key">Hostname:</span><span class="field-val" id="dom-hostname">—</span>
+            <span class="field-key">Registrable Domain:</span><span class="field-val" id="dom-reg-domain">—</span>
+            <span class="field-key">Subdomain Structure:</span><span class="field-val" id="dom-subdomains">—</span>
+            <span class="field-key">Resolved IPv4/IPv6:</span><strong class="field-val" id="dom-ips" style="color:var(--green);">—</strong>
+            <span class="field-key">Nameservers:</span><span class="field-val" id="dom-ns">—</span>
+            <span class="field-key">ASN / Routing:</span><span class="field-val" id="dom-asn">—</span>
+            <span class="field-key">TLS Metadata:</span><span class="field-val" id="dom-tls">—</span>
+            <span class="field-key">Lookup Source:</span><span class="field-val" id="dom-source">—</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">DNS Resource Records (A / CNAME / NS)</span></div>
+          <table class="tech-table">
+            <thead><tr><th>Record Type</th><th>Value</th><th>TTL</th></tr></thead>
+            <tbody id="dom-records-tbody"><tr><td colspan="3" class="empty-state">No records resolved.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-http">
+        <div class="card">
+          <div class="card-header"><span class="card-title">HTTP Request &amp; Response Telemetry</span></div>
+          <div class="field-grid">
+            <span class="field-key">HTTP Status:</span><strong class="field-val" id="http-status">—</strong>
+            <span class="field-key">Initial Target:</span><span class="field-val" id="http-init-url">—</span>
+            <span class="field-key">Final Destination:</span><span class="field-val" id="http-final-url">—</span>
+            <span class="field-key">Redirect Hops:</span><span class="field-val" id="http-redirect-count">0</span>
+            <span class="field-key">Round-Trip Latency:</span><span class="field-val" id="http-latency">—</span>
+            <span class="field-key">Content-Type:</span><span class="field-val" id="http-content-type">—</span>
+            <span class="field-key">Server Header:</span><span class="field-val" id="http-server">—</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Response Headers</span></div>
+          <table class="tech-table">
+            <thead><tr><th>Header Name</th><th>Header Value</th></tr></thead>
+            <tbody id="http-headers-tbody"><tr><td colspan="2" class="empty-state">No headers captured.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-website">
+        <div id="page-native-banner" style="display:none;margin-bottom:12px;padding:12px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:8px;font-size:12px;line-height:1.6;">
+          <strong style="color:var(--blue);">ℹ️ Native Action Protocol Target (No HTML Document)</strong>
+          <div id="page-native-desc" style="color:var(--text-secondary);margin-top:4px;"></div>
+        </div>
+
+        <!-- Inspected Webpage Screenshot Preview Card -->
+        <div class="card" id="web-screenshot-card" style="margin-bottom:14px;border-left:3px solid var(--purple, #a855f7);">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title" style="color:var(--purple, #a855f7);">📸 Inspected Webpage Screenshot Preview</span>
+            <span class="badge" id="web-screenshot-badge" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;">UNAVAILABLE</span>
+          </div>
+          <div id="web-screenshot-body" style="padding:12px;background:var(--bg-panel);border-radius:6px;">
+            <div id="web-screenshot-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;text-align:center;">
+              <span style="font-size:32px;margin-bottom:8px;opacity:0.6;">📷</span>
+              <strong style="color:var(--text-secondary);font-size:13px;margin-bottom:4px;">Webpage Screenshot Unavailable</strong>
+              <span id="web-screenshot-reason" style="max-width:440px;line-height:1.6;">Mode A (URL-Only) does not connect to target. Run Mode C (Isolated Live Inspection) to render page and capture browser preview.</span>
+            
+              <button class="btn" id="btn-upgrade-live-card" style="margin-top:12px;background:rgba(234,179,8,0.2);color:var(--yellow);border:1px solid var(--yellow);font-weight:600;padding:6px 16px;display:inline-block;" onclick="handleUpgradeToLive()">🔬 Upgrade this Case to Mode C (Live Inspection)</button></div>
+            <div id="web-screenshot-view" style="display:none;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);">
+                <span>Viewport: <strong>1280 × 800 (Desktop)</strong> • Isolated Chromium Sandbox</span>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn" style="padding:2px 8px;font-size:10px;" onclick="zoomScreenshot()">🔍 Enlarge</button>
+                  <a class="btn" id="web-screenshot-dl-btn" style="padding:2px 8px;font-size:10px;text-decoration:none;" download="trustlayer-screenshot.png" href="#">💾 Download PNG</a>
+                </div>
+              </div>
+              <div style="text-align:center;background:#000;border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:480px;display:flex;align-items:center;justify-content:center;">
+                <img id="web-screenshot-img" style="max-width:100%;max-height:480px;object-fit:contain;cursor:zoom-in;" onclick="zoomScreenshot()" alt="Inspected webpage screenshot" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8-Question Website Intelligence Summary Card -->
+        <div class="card" id="web-intel-8q-card" style="border-left: 3px solid var(--blue);margin-bottom:14px;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title" style="color:var(--blue);">📋 Website Intelligence Summary (8 Core Questions)</span>
+            <span class="badge MODEL" id="web-intel-mode-badge">MODE A: URL-ONLY</span>
+          </div>
+          <div id="web-intel-8q-content" style="display:flex;flex-direction:column;gap:12px;padding:10px 0;font-size:12px;line-height:1.65;">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Page Summary &amp; DOM Fingerprint</span></div>
+          <div class="field-grid">
+            <span class="field-key">Page Title:</span><strong class="field-val" id="page-title">—</strong>
+            <span class="field-key">DOM Node Count:</span><span class="field-val" id="page-nodes">0</span>
+            <span class="field-key">HTML Payload Size:</span><span class="field-val" id="page-size">0 B</span>
+            <span class="field-key">DOM Fingerprint:</span><span class="field-val" id="page-fingerprint" style="color:var(--blue);">—</span>
+            <span class="field-key">Semantic Headings:</span><span class="field-val" id="page-headings">—</span>
+            <span class="field-key">Buttons / CTAs:</span><span class="field-val" id="page-buttons">—</span>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Discovered Form Elements</span></div>
+            <div id="page-forms-area"><div class="empty-state">No forms observed.</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Scripts &amp; iFrames</span></div>
+            <div id="page-scripts-area"><div class="empty-state">No external scripts observed.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-network">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Observed Network Request Waterfall</span></div>
+          <table class="tech-table">
+            <thead>
+              <tr><th>Time</th><th>Method</th><th>Host &amp; Path</th><th>Status</th><th>Type</th><th>Size</th><th>Duration</th></tr>
+            </thead>
+            <tbody id="network-waterfall-tbody">
+              <tr><td colspan="7" class="empty-state">No network requests captured.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-intent">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Page Functional Intent Classification (PAGE-INTENT-v1)</span>
+            <span class="badge MODEL">Trained Multi-Class</span>
+          </div>
+          <div class="field-grid" style="margin-bottom:12px;">
+            <span class="field-key">Primary Intent:</span><strong class="field-val" id="intent-primary-val" style="color:var(--blue);font-size:13px;">—</strong>
+            <span class="field-key">Secondary Intent:</span><span class="field-val" id="intent-secondary-val">—</span>
+            <span class="field-key">Model Confidence:</span><span class="field-val" id="intent-conf-val">—</span>
+            <span class="field-key">Rule Baseline:</span><span class="field-val" id="intent-rule-val">—</span>
+            <span class="field-key">Intent Consistency:</span><span class="field-val" id="intent-consist-val">—</span>
+            <span class="field-key">Claimed Pretext:</span><span class="field-val" id="intent-claimed-val">—</span>
+            <span class="field-key">Observed Reality:</span><span class="field-val" id="intent-observed-val">—</span>
+            <span class="field-key">Requested Actions:</span><div class="field-val" id="intent-actions-chips" style="display:flex;gap:4px;flex-wrap:wrap;">—</div>
+            <span class="field-key">Requested Data:</span><div class="field-val" id="intent-data-chips" style="display:flex;gap:4px;flex-wrap:wrap;">—</div>
+          </div>
+          <div id="intent-mismatch-banner" style="display:none;"></div>
+        </div>
+        <!-- Structured Page & Payload Intelligence Summary -->
+        <div class="card" id="intent-summary-card" style="margin-top:14px;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title" style="color:var(--blue);">📋 Page &amp; Payload Intelligence Summary</span>
+            <span class="badge MODEL" id="intent-summary-badge">INTENT AUDIT</span>
+          </div>
+          <div id="intent-summary-text" style="font-family:var(--font-mono);font-size:11px;line-height:1.65;color:var(--text-primary);white-space:pre-wrap;background:rgba(0,0,0,0.3);padding:14px;border-radius:6px;border:1px solid var(--border-subtle);margin-top:8px;">Run an investigation to view the complete structured intent report.</div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-identity">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Identity Continuity &amp; Brand Analysis</span></div>
+          <div class="field-grid">
+            <span class="field-key">Claimed Entity:</span><strong class="field-val" id="id-claimed" style="color:var(--text-primary);">—</strong>
+            <span class="field-key">Observed Domain:</span><span class="field-val" id="id-observed">—</span>
+            <span class="field-key">Payment Recipient:</span><span class="field-val" id="id-payment">None</span>
+            <span class="field-key">Identity Continuity:</span><span class="field-val" id="id-continuity">—</span>
+            <span class="field-key">Reconciliation Reason:</span><span class="field-val" id="id-reason">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-dataflow">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Interactive Data Flow &amp; Destination Routing</span>
+            <span class="badge DERIVED">MAPPED</span>
+          </div>
+          <p style="color:var(--text-secondary);font-size:12px;">
+            Tracks sensitive user inputs (passwords, OTPs, cards) to their exact submission action targets and flags same-origin vs external collectors.
+          </p>
+          <table class="tech-table">
+            <thead>
+              <tr><th>Input Field</th><th>Category</th><th>Target Action URL</th><th>Destination Host</th><th>Routing Status</th></tr>
+            </thead>
+            <tbody id="dataflow-tbody">
+              <tr><td colspan="5" class="empty-state">No interactive form inputs mapped.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-breakpoints">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Observed Trust Boundary Violations</span></div>
+          <div id="breakpoints-list"><div class="empty-state">No trust breakpoints observed in current case.</div></div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-evidence">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Numbered Evidence Ledger (Click to Inspect Raw Payload)</span></div>
+          <table class="tech-table">
+            <thead>
+              <tr><th>ID</th><th>Provenance</th><th>Category</th><th>Finding Description</th><th>Timestamp</th></tr>
+            </thead>
+            <tbody id="evidence-table-body">
+              <tr><td colspan="5" class="empty-state">No registered forensic evidence.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-graph">
+        <div class="card" style="height:550px;padding:0;overflow:hidden;position:relative;">
+          <div class="card-header" style="position:absolute;top:10px;left:10px;right:10px;background:rgba(13,18,25,0.85);z-index:2;">
+            <span class="card-title">Interactive Evidence Relationship Graph</span>
+            <span class="badge OBSERVED" id="graph-node-count">0 Nodes</span>
+          </div>
+          <svg id="evidence-svg-canvas" style="width:100%;height:100%;"></svg>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-timeline">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Chronological Forensic Event Stream</span></div>
+          <div id="timeline-body"><div class="empty-state">Timeline is empty.</div></div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-deception">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title" style="color:var(--green);">👤 User-Perceived Claimed Flow</span></div>
+            <div id="dec-perceived-steps"><div class="empty-state">Run investigation to view journey.</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title" style="color:var(--red);">🕵️ Observed Technical Reality</span></div>
+            <div id="dec-actual-steps"><div class="empty-state">Run investigation to view observed path.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-qr">
+        <!-- QR Action Preview Banner (shown when a payload is decoded before investigation) -->
+        <div id="qr-action-preview" style="display:none;margin-bottom:14px;">
+          <div class="card" style="border:2px solid var(--amber);background:rgba(251,191,36,0.06);">
+            <div class="card-header">
+              <span class="card-title" style="color:var(--amber);">⚠ QR Action Preview — Before You Proceed</span>
+              <span class="badge" id="qr-preview-type-badge" style="background:var(--amber);color:#000;"></span>
+            </div>
+            <div id="qr-preview-content" style="font-size:12px;line-height:1.8;"></div>
+          </div>
+        </div>
+
+        <!-- Context Consistency Check -->
+        <div id="qr-context-block" style="display:none;margin-bottom:14px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">QR Intent Context Consistency</span>
+              <span class="badge" id="qr-context-badge">UNKNOWN</span>
+            </div>
+            <div class="field-grid">
+              <span class="field-key">Expected Context:</span><span class="field-val" id="qr-ctx-expected">—</span>
+              <span class="field-key">Decoded Action:</span><span class="field-val" id="qr-ctx-decoded">—</span>
+              <span class="field-key">Consistency:</span><strong class="field-val" id="qr-ctx-status">—</strong>
+              <span class="field-key">Explanation:</span><span class="field-val" id="qr-ctx-explanation" style="color:var(--text-secondary);">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Live QR Scanner &amp; Upload</span></div>
+            <p style="color:var(--text-secondary);font-size:11.5px;">
+              Scan a physical QR code via webcam or upload an image to decode and feed directly into the unified investigation pipeline.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+              <video id="qr-video" style="width:100%;max-height:220px;background:#000;border-radius:4px;display:none;" autoplay playsinline></video>
+              <canvas id="qr-canvas" style="display:none;"></canvas>
+              <div style="display:flex;gap:8px;width:100%;">
+                <button class="btn btn-primary" id="btn-start-camera" style="flex:1;">🎥 START WEBCAM</button>
+                <button class="btn btn-danger" id="btn-stop-camera" style="display:none;flex:1;">⏹ STOP</button>
+              </div>
+              <input type="file" id="qr-file-input" accept="image/*" style="display:none;" />
+              <button class="btn" onclick="document.getElementById('qr-file-input').click()" style="width:100%;">📁 UPLOAD QR IMAGE FILE</button>
+            </div>
+            <!-- Optional: Expected Context Input -->
+            <div style="margin-top:12px;border-top:1px solid var(--border-subtle);padding-top:10px;">
+              <span class="field-key" style="display:block;margin-bottom:4px;">Optional: Where did you find this QR? (intent mismatch check)</span>
+              <select id="qr-expected-context" class="field-val" style="width:100%;background:var(--bg-secondary);border:1px solid var(--border-subtle);color:var(--text-primary);border-radius:4px;padding:5px 8px;font-size:11px;">
+                <option value="NONE">— Not specified —</option>
+                <option value="MENU">Restaurant / Café Menu</option>
+                <option value="PARKING">Parking Payment Terminal</option>
+                <option value="PARCEL">Parcel / Courier Tracking</option>
+                <option value="WIFI">Wi-Fi Access Point</option>
+                <option value="MERCHANT">Merchant Shop Payment</option>
+                <option value="BANK">Bank / Financial Statement</option>
+                <option value="INVOICE">Invoice / Bill</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Controlled Test QR Vectors</span></div>
+            <p style="color:var(--text-muted);font-size:11px;">Instant pre-computed QR payloads:</p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <button class="btn btn-danger" onclick="injectQRPayload('http://hdfc-netbanking-verify.xyz/login.php?verify=1')">🚨 HDFC Phishing URL QR</button>
+              <button class="btn btn-danger" onclick="injectQRPayload('upi://pay?pa=scammer.refund@okaxis&pn=Electricity%20Bill%20Refund&am=4999.00&tn=Refund%20Reward%20Claim')">🚨 UPI Reverse-Debit Trap QR</button>
+              <button class="btn btn-danger" onclick="injectQRPayload('WIFI:S:Free_Airport_Public_WiFi;T:nopass;;')">📶 Open Wi-Fi Trap QR</button>
+              <button class="btn" onclick="injectQRPayload('tel:+1900200100')">📞 Tel URI QR</button>
+              <button class="btn" onclick="injectQRPayload('mailto:phish@badactor.xyz?subject=Claim+Reward')">✉ Email URI QR</button>
+              <button class="btn" onclick="injectQRPayload('https://www.google.com')">✅ Legitimate URL QR</button>
+            </div>
+
+            <div style="margin-top:14px;border-top:1px solid var(--border-subtle);padding-top:10px;">
+              <span class="field-key">Decoded Payload:</span>
+              <div id="qr-decoded-text" style="font-family:var(--font-mono);font-size:11px;color:var(--blue);margin:6px 0;word-break:break-all;">(No QR scanned yet)</div>
+              <button class="btn btn-primary" id="btn-investigate-qr" style="width:100%;display:none;">🚀 INVESTIGATE DECODED PAYLOAD</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-payment">
+        <div class="card">
+          <div class="card-header"><span class="card-title">UPI Payment Intent &amp; Reverse-Debit Forensics</span></div>
+          <div class="field-grid" id="payment-fields">
+            <span class="field-key">Payee VPA:</span><strong class="field-val" id="pay-vpa">—</strong>
+            <span class="field-key">Payee Name:</span><span class="field-val" id="pay-name">—</span>
+            <span class="field-key">Requested Amount:</span><strong class="field-val" id="pay-amount" style="color:var(--amber);">—</strong>
+            <span class="field-key">Transaction Note:</span><span class="field-val" id="pay-note">—</span>
+            <span class="field-key">Trap Classification:</span><span class="badge UNKNOWN" id="pay-trap-badge">NOT APPLICABLE</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-report">
+        <div class="card" id="report-container">
+          <div class="empty-state">Report will be compiled upon investigation finalization.</div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-modelresearch">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">1. URL Lexical Classifier (URL-TABULAR-V1)</span>
+            <span class="badge MODEL">v1.0.0</span>
+          </div>
+          <div class="grid-4" style="margin-bottom:14px;">
+            <div class="cov-item"><div class="cov-name">Accuracy</div><div style="color:var(--green);font-size:15px;font-weight:700;">100.0%</div></div>
+            <div class="cov-item"><div class="cov-name">ROC-AUC</div><div style="color:var(--blue);font-size:15px;font-weight:700;">1.000</div></div>
+            <div class="cov-item"><div class="cov-name">Macro F1</div><div style="color:var(--purple);font-size:15px;font-weight:700;">1.000</div></div>
+            <div class="cov-item"><div class="cov-name">Brier Score</div><div style="color:var(--cyan);font-size:15px;font-weight:700;">0.0003</div></div>
+          </div>
+          <div class="field-grid">
+            <span class="field-key">Dataset:</span><span class="field-val">TrustLayer-URL-Benchmark-2026 (PhiUSIIL / PhishTank / Tranco / Banking Corpus)</span>
+            <span class="field-key">Validation Split:</span><span class="field-val">Domain-Disjoint Stratified Grouping (Zero domain overlap between train &amp; test)</span>
+            <span class="field-key">Calibration Method:</span><span class="field-val">Platt Scaling with Borderline Abstention Region [0.38 - 0.62]</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">2. Page Intent Classifier (PAGE-INTENT-v1)</span>
+            <span class="badge MODEL">v1.0.0</span>
+          </div>
+          <div class="grid-4" style="margin-bottom:14px;">
+            <div class="cov-item"><div class="cov-name">Accuracy</div><div style="color:var(--green);font-size:15px;font-weight:700;">95.8%</div></div>
+            <div class="cov-item"><div class="cov-name">PR-AUC</div><div style="color:var(--blue);font-size:15px;font-weight:700;">0.971</div></div>
+            <div class="cov-item"><div class="cov-name">Macro F1</div><div style="color:var(--purple);font-size:15px;font-weight:700;">0.958</div></div>
+            <div class="cov-item"><div class="cov-name">Macro Precision</div><div style="color:var(--cyan);font-size:15px;font-weight:700;">0.962</div></div>
+          </div>
+          <div class="field-grid" style="margin-bottom:12px;">
+            <span class="field-key">Dataset:</span><span class="field-val">TRUSTLAYER-PAGE-INTENT-V1 (12 Intent Classes: LOGIN, PAYMENT, BANKING, CHECKOUT, etc.)</span>
+            <span class="field-key">Validation Split:</span><span class="field-val">5-Fold Domain-Disjoint Cross Validation</span>
+            <span class="field-key">Architecture:</span><span class="field-val">Multi-Class Softmax Regression with Temperature Scaling (T=1.15)</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="view-pane" id="view-rulediag">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚖️ Rule Score Aggregator</span>
+              <span class="badge UNKNOWN" id="rd-classification-badge">NOT EVALUATED</span>
+            </div>
+            <div class="field-grid">
+              <span class="field-key">Deterministic Score:</span>
+              <strong class="field-val" id="rd-score-val" style="color:var(--blue);font-size:15px;font-family:var(--font-mono);">— / 100</strong>
+              <span class="field-key">Classification:</span>
+              <span class="field-val" id="rd-category-val">—</span>
+              <span class="field-key">Rules Triggered:</span>
+              <span class="field-val" id="rd-triggered-count">0 / 14</span>
+              <span class="field-key">Thresholds:</span>
+              <span class="field-val" style="font-family:var(--font-mono);font-size:11px;">SAFE ≤ 24 · UNDER_REVIEW 25–59 · PHISHING ≥ 60</span>
+              <span class="field-key">Explanation:</span>
+              <span class="field-val" id="rd-score-explanation" style="color:var(--text-secondary);">Run an investigation to evaluate rules.</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Category Caps (Anti-Correlation)</span>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Correlated signals in the same category are capped to prevent duplicate inflation.</p>
+            <div class="field-grid">
+              <span class="field-key">HOST (cap 45):</span><span class="field-val" id="rd-cap-host">— pts</span>
+              <span class="field-key">STRUCTURE (cap 30):</span><span class="field-val" id="rd-cap-structure">— pts</span>
+              <span class="field-key">LEXICAL (cap 35):</span><span class="field-val" id="rd-cap-lexical">— pts</span>
+              <span class="field-key">ENCODING (cap 35):</span><span class="field-val" id="rd-cap-encoding">— pts</span>
+              <span class="field-key">OBSCURATION (cap 25):</span><span class="field-val" id="rd-cap-obscuration">— pts</span>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title">All 14 Rule Evaluations</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-primary" id="btn-rd-all" style="font-size:10px;padding:3px 8px;" onclick="rdShowAll()">ALL</button>
+              <button class="btn" id="btn-rd-triggered" style="font-size:10px;padding:3px 8px;" onclick="rdShowTriggered()">TRIGGERED ONLY</button>
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">A score of zero is valid if no rules fire. Every row shows the actual observed value that caused or prevented the rule from triggering.</p>
+          <table class="tech-table">
+            <thead>
+              <tr><th>Rule ID</th><th>Name</th><th>Category</th><th>Severity</th><th>Observed Value</th><th>Status</th><th>Contribution</th><th>Reason</th></tr>
+            </thead>
+            <tbody id="rd-rules-tbody">
+              <tr><td colspan="8" class="empty-state">No rule evaluation performed yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+<!-- 3. PERSISTENT STATUS BAR -->
+  <footer class="bottom-statusbar">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="status-indicator-dot"></span>
+      <span id="sb-engine-status">Trust Layer v2.2 Engine Active</span>
+    </div>
+    <div id="sb-case-info">No Active Investigation</div>
+    <div id="sb-clock">00:00:00</div>
+  </footer>
+
+</div>
+
+<!-- INTAKE / NEW CASE MODAL -->
+<div class="modal-overlay hidden" id="intake-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Initialize Digital Fraud Case</span>
+      <button class="btn" id="btn-close-intake">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-secondary);font-size:12px;">
+        Enter a target URL, domain, or UPI QR payload to execute a real, sandboxed forensic investigation.
+      </p>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="intake-input" style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:#fff;font-family:var(--font-mono);font-size:12px;" placeholder="https://example.com  or  upi://pay?pa=..." />
+        <button class="btn btn-primary" id="intake-submit-btn">INVESTIGATE</button>
+      </div>
+
+      <!-- INSPECTION MODE SELECTOR -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Select Inspection Mode:</span>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--text-primary);padding:8px;border-radius:4px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.04);">
+            <input type="radio" name="inspection-mode" value="URL_ONLY" checked style="margin-top:2px;" />
+            <div>
+              <strong style="color:#38bdf8;">Mode A: URL-Only Assessment (Default)</strong>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Safe lexical & reputation heuristics. Zero direct connection to target.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:not-allowed;font-size:12px;color:var(--text-muted);opacity:0.5;padding:8px;">
+            <input type="radio" name="inspection-mode" value="SNAPSHOT" disabled style="margin-top:2px;" />
+            <div>
+              <strong>Mode B: Snapshot Inspection (Disabled)</strong>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Inspect cached / provided static HTML snapshot.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--text-primary);padding:8px;border-radius:4px;border:1px solid rgba(234,179,8,0.3);background:rgba(234,179,8,0.04);">
+            <input type="radio" name="inspection-mode" value="ISOLATED_LIVE" style="margin-top:2px;" />
+            <div>
+              <strong style="color:var(--yellow);">Mode C: Isolated Live Inspection (Restricted Container)</strong>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Render dynamic DOM and capture browser screenshot via isolated container worker. Requires user consent.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border-subtle);padding-top:10px;">
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;">Controlled Test Vectors:</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <button class="btn btn-danger" onclick="triggerCase('http://hdfc-netbanking-verify.xyz/login.php?verify=1')">HDFC Phish</button>
+          <button class="btn btn-danger" onclick="triggerCase('http://paypal-security-update.top/account/verify')">PayPal Spoof</button>
+          <button class="btn btn-danger" onclick="triggerCase('http://192.168.1.1/banking/login')">SSRF IP Block</button>
+          <button class="btn" onclick="triggerCase('https://www.google.com')">Google (Safe)</button>
+          <button class="btn" onclick="triggerCase('https://en.wikipedia.org/wiki/Computer_security')">Wikipedia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODE C CONSENT CONFIRMATION MODAL -->
+<div class="modal-overlay" id="mode-c-consent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);z-index:99999;align-items:center;justify-content:center;">
+  <div class="modal-box" style="border: 2px solid #eab308;max-width:580px;background:var(--bg-panel);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85);overflow:hidden;">
+    <div class="modal-header" style="background:rgba(234,179,8,0.18);border-bottom:1px solid rgba(234,179,8,0.35);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+      <span class="modal-title" style="color:#eab308;font-weight:700;letter-spacing:0.5px;font-size:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">🔬</span> AUTHORIZE ISOLATED LIVE INSPECTION (MODE C)
+      </span>
+      <button class="btn" onclick="closeModeCConsentModal()" style="font-size:14px;padding:2px 8px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px;display:flex;flex-direction:column;gap:14px;">
+      <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.35);border-radius:6px;padding:12px;font-size:12px;line-height:1.6;">
+        <strong style="color:#eab308;display:block;margin-bottom:6px;">⚠️ Operator Authorization Required:</strong>
+        You are authorizing Trust Layer to contact the target web server through a restricted, isolated inspection runtime:
+        <div style="background:#000;border:1px solid var(--border);border-radius:4px;padding:8px 10px;margin:8px 0;font-family:var(--font-mono);font-size:11px;word-break:break-all;color:#38bdf8;" id="modal-target-url">
+          —
+        </div>
+      </div>
+
+      <div style="font-size:11.5px;color:var(--text-secondary);line-height:1.7;">
+        <strong style="color:#fff;display:block;margin-bottom:6px;">Security &amp; Isolation Guarantees:</strong>
+        <ul style="margin-left:18px;display:flex;flex-direction:column;gap:5px;">
+          <li>Executed in a restricted backend execution worker — <strong>never inside your personal browser</strong>.</li>
+          <li><strong>Zero personal credentials</strong>, cookies, session tokens, or browser profiles are shared.</li>
+          <li><strong>Read-only observation mode</strong>: Mutating submissions (POST, PUT, DELETE) are strictly blocked.</li>
+          <li>All outbound connections pass through the Controlled Egress Proxy with connection-time DNS validation.</li>
+          <li>Captures dynamic JavaScript DOM, form actions, third-party subresources, and viewport screenshot.</li>
+        </ul>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:8px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
+        <button class="btn" onclick="closeModeCConsentModal()" style="padding:9px 18px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-weight:600;">Cancel</button>
+        <button class="btn" id="modal-confirm-btn" style="background:#eab308 !important;color:#000000 !important;font-weight:800 !important;font-size:12.5px !important;border:1px solid #facc15 !important;padding:10px 24px !important;cursor:pointer !important;border-radius:6px !important;box-shadow:0 0 20px rgba(234,179,8,0.6) !important;letter-spacing:0.3px !important;display:inline-flex !important;align-items:center !important;gap:8px !important;">
+          <span style="font-size:14px;font-weight:900;">✓</span> I Agree &amp; Authorize Live Inspection
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECENT CASES DRAWER -->
+<div class="drawer-overlay hidden" id="cases-drawer">
+  <div class="drawer-box">
+    <div class="modal-header">
+      <span class="modal-title">Recent Investigation Cases</span>
+      <button class="btn" id="btn-close-drawer">✕</button>
+    </div>
+    <div class="modal-body" id="recent-cases-list">
+      <div class="empty-state">Loading cases...</div>
+    </div>
+  </div>
+</div>
+
+<!-- JAVASCRIPT: APPLICATION LOGIC — pure browser JS, no Node imports -->
+<script src="vendor/jsQR.js"></script>
+<script>
+'use strict';
+
+
+let activeCase = null;
+window.activeCase = null;
+let currentView = 'overview';
+
+window.copyCaseJson = function() {
+  const schema = (window.activeCase && window.activeCase.schema) ? window.activeCase.schema : activeCase?.schema;
+  if (!schema) {
+    alert('No case telemetry available to copy yet.');
+    return;
+  }
+  const jsonStr = JSON.stringify(schema, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(jsonStr)
+      .then(() => alert('Case forensic JSON copied to clipboard.'))
+      .catch(() => prompt('Copy case JSON manually:', jsonStr));
+  } else {
+    prompt('Copy case JSON manually:', jsonStr);
+  }
+};
+
+// ── View Switching (Persistent Shell) ───────────────────────────────────────
+window.switchView = function(viewName) {
+  currentView = viewName;
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.view === viewName);
+  });
+  document.querySelectorAll('.view-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === `view-${viewName}`);
+  });
+  if (viewName === 'graph') renderGraph();
+};
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => switchView(item.dataset.view));
+});
+
+// ── Intake Modal Controls ──────────────────────────────────────────────────
+const intakeModal = document.getElementById('intake-modal');
+const intakeInput = document.getElementById('intake-input');
+
+function openIntakeModal() {
+  intakeModal.classList.remove('hidden');
+  intakeInput.value = '';
+  setTimeout(() => intakeInput.focus(), 50);
+}
+function closeIntakeModal() { intakeModal.classList.add('hidden'); }
+
+document.getElementById('btn-new-case').addEventListener('click', openIntakeModal);
+document.getElementById('btn-close-intake').addEventListener('click', closeIntakeModal);
+
+// Click outside modal box → close
+intakeModal.addEventListener('click', (e) => {
+  if (e.target === intakeModal) closeIntakeModal();
+});
+
+// Enter key submits investigation
+intakeInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const val = intakeInput.value.trim();
+    if (val) { closeIntakeModal(); triggerCase(val); }
+  }
+});
+
+document.getElementById('intake-submit-btn').addEventListener('click', () => {
+  const val = intakeInput.value.trim();
+  if (val) { closeIntakeModal(); triggerCase(val); }
+});
+
+// ── Cases History Drawer ───────────────────────────────────────────────────
+const casesDrawer = document.getElementById('cases-drawer');
+document.getElementById('btn-case-history').addEventListener('click', async () => {
+  casesDrawer.classList.remove('hidden');
+  await loadRecentCasesList();
+});
+document.getElementById('btn-close-drawer').addEventListener('click', () => {
+  casesDrawer.classList.add('hidden');
+});
+// Click outside drawer panel → close
+casesDrawer.addEventListener('click', (e) => {
+  if (e.target === casesDrawer) casesDrawer.classList.add('hidden');
+});
+
+async function loadRecentCasesList() {
+  const container = document.getElementById('recent-cases-list');
+  try {
+    const res = await fetch('/api/cases');
+    const data = await res.json();
+    if (!data.cases || data.cases.length === 0) {
+      container.innerHTML = '<div class="empty-state">No prior cases recorded.</div>';
+      return;
+    }
+    container.innerHTML = data.cases.map(c => `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:10px;cursor:pointer;" onclick="loadCaseById('${c.id}')">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <strong style="color:var(--blue);font-family:var(--font-mono);font-size:11px;">${c.id}</strong>
+          <span class="badge ${c.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}">${c.status}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.target)}</div>
+        <div style="font-size:9.5px;color:var(--text-muted);margin-top:4px;">${new Date(c.createdAt).toLocaleTimeString()} · ${c.evidenceCount} evidence items</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state" style="color:var(--red);">Failed to fetch cases: ${esc(err.message)}</div>`;
+  }
+}
+
+window.loadCaseById = async function(id) {
+  casesDrawer.classList.add('hidden');
+  try {
+    const res = await fetch(`/api/cases/${id}`);
+    const schema = await res.json();
+    window.activeCase = activeCase = { id: schema.id, target: schema.target, schema };
+    updateCaseUI(schema);
+    switchView('overview');
+  } catch (err) {
+    alert(`Could not load case ${id}: ${err.message}`);
+  }
+};
+
+
+
+// ── Mode C (Isolated Live Inspection) UI Handlers ─────────────────────────
+let pendingLiveTarget = null;
+let pendingLiveCaseId = null;
+
+function showModeCConsentModal(target, caseId = null) {
+  pendingLiveTarget = target;
+  pendingLiveCaseId = caseId;
+  const targetEl = document.getElementById('modal-target-url');
+  if (targetEl) targetEl.textContent = target;
+  const modal = document.getElementById('mode-c-consent-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModeCConsentModal() {
+  const modal = document.getElementById('mode-c-consent-modal');
+  if (modal) modal.style.display = 'none';
+  pendingLiveTarget = null;
+  pendingLiveCaseId = null;
+}
+
+const confirmModalBtn = document.getElementById('modal-confirm-btn');
+if (confirmModalBtn) {
+  confirmModalBtn.addEventListener('click', async () => {
+    const target = pendingLiveTarget;
+    const caseId = pendingLiveCaseId;
+    closeModeCConsentModal();
+
+    if (caseId) {
+      // Upgrade existing case to Mode C
+      try {
+        setHdrModeButtons('ISOLATED_LIVE');
+        const canBtn = document.getElementById('btn-cancel-live');
+        if (canBtn) canBtn.style.display = 'inline-block';
+        const stPill = document.getElementById('hdr-state-pill');
+        if (stPill) {
+          stPill.className = 'badge INFERRED';
+          stPill.textContent = 'LIVE_RUNNING';
+        }
+        document.getElementById('sb-case-info').textContent = `Live Inspecting: ${target}`;
+
+        const res = await fetch(`/api/cases/${caseId}/live-inspect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ consentConfirmed: true })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(`Live inspection error: ${err.error || 'Failed to start'}`);
+          setHdrModeButtons(window.activeCase?.schema?.inspectionMode || 'URL_ONLY');
+          return;
+        }
+
+        pollLiveCaseUntilComplete(caseId);
+      } catch (e) {
+        alert(`Live inspection request failed: ${e.message}`);
+      }
+    } else if (target) {
+      setHdrModeButtons('ISOLATED_LIVE');
+      runInvestigation(target, 'ISOLATED_LIVE');
+    }
+  });
+}
+
+
+// ── Mode Switcher & Poller Helpers ─────────────────────────────────────────
+function setHdrModeButtons(mode) {
+  const btnA = document.getElementById('btn-hdr-mode-a');
+  const btnC = document.getElementById('btn-hdr-mode-c');
+  if (btnA && btnC) {
+    if (mode === 'ISOLATED_LIVE') {
+      btnA.className = 'mode-select-btn';
+      btnC.className = 'mode-select-btn active-mode-c';
+    } else {
+      btnA.className = 'mode-select-btn active-mode-a';
+      btnC.className = 'mode-select-btn';
+    }
+  }
+}
+
+function switchInspectionMode(mode) {
+  if (mode === 'ISOLATED_LIVE') {
+    if (window.activeCase && window.activeCase.target) {
+      if (window.activeCase.schema && window.activeCase.schema.inspectionMode === 'ISOLATED_LIVE') {
+        return;
+      }
+      showModeCConsentModal(window.activeCase.target, window.activeCase.id);
+    } else {
+      const radio = document.querySelector('input[name="inspection-mode"][value="ISOLATED_LIVE"]');
+      if (radio) radio.checked = true;
+      openIntakeModal();
+    }
+  } else if (mode === 'URL_ONLY') {
+    if (window.activeCase && window.activeCase.target) {
+      if (window.activeCase.schema && window.activeCase.schema.inspectionMode === 'URL_ONLY') {
+        return;
+      }
+      setHdrModeButtons('URL_ONLY');
+      runInvestigation(window.activeCase.target, 'URL_ONLY');
+    } else {
+      const radio = document.querySelector('input[name="inspection-mode"][value="URL_ONLY"]');
+      if (radio) radio.checked = true;
+      openIntakeModal();
+    }
+  }
+}
+
+function pollLiveCaseUntilComplete(caseId) {
+  let attempts = 0;
+  const maxAttempts = 35;
+  const interval = setInterval(async () => {
+    attempts++;
+    try {
+      const res = await fetch('/api/cases/' + caseId);
+      if (!res.ok) return;
+      const schema = await res.json();
+      if (window.activeCase) window.activeCase.schema = schema;
+      updateCaseUI(schema);
+
+      const done = schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE' || schema.status === 'BLOCKED';
+      if (done || attempts >= maxAttempts) {
+        clearInterval(interval);
+        const canBtn = document.getElementById('btn-cancel-live');
+        if (canBtn) canBtn.style.display = 'none';
+        const stPill = document.getElementById('hdr-state-pill');
+        if (stPill) {
+          stPill.className = 'badge ' + (schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN');
+          stPill.textContent = schema.status;
+        }
+      }
+    } catch {}
+  }, 800);
+}
+
+function handleUpgradeToLive() {
+  if (window.activeCase && window.activeCase.target) {
+    showModeCConsentModal(window.activeCase.target, window.activeCase.id);
+  } else {
+    const radio = document.querySelector('input[name="inspection-mode"][value="ISOLATED_LIVE"]');
+    if (radio) radio.checked = true;
+    openIntakeModal();
+  }
+}
+
+async function zoomScreenshot() {
+  const shotImg = document.getElementById('web-screenshot-img');
+  const modal = document.getElementById('screenshot-zoom-modal');
+  const modalImg = document.getElementById('screenshot-zoom-img');
+  if (shotImg && modal && modalImg && shotImg.src) {
+    modalImg.src = shotImg.src;
+    modal.style.display = 'flex';
+  }
+}
+
+async function handleCancelLive() {
+  if (window.activeCase && window.activeCase.id) {
+    try {
+      await fetch(`/api/cases/${window.activeCase.id}/cancel-live`, { method: 'POST' });
+      const canBtn = document.getElementById('btn-cancel-live');
+      if (canBtn) canBtn.style.display = 'none';
+    } catch {}
+  }
+}
+
+window.triggerCase = function(target, explicitMode = null) {
+  document.getElementById('intake-modal').classList.add('hidden');
+  const selectedMode = explicitMode || document.querySelector('input[name="inspection-mode"]:checked')?.value || 'URL_ONLY';
+  if (selectedMode === 'ISOLATED_LIVE') {
+    showModeCConsentModal(target);
+  } else {
+    runInvestigation(target, 'URL_ONLY');
+  }
+};
+
+// ── Run Investigation Pipeline via Backend API ────────────────────────────
+async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
+  if (!target || !target.trim()) return;
+  const cleanTarget = target.trim();
+
+  // Reset UI to running state
+  document.getElementById('hdr-case-id').textContent = 'INITIALIZING...';
+  document.getElementById('hdr-target-display').textContent = cleanTarget;
+  document.getElementById('hdr-state-pill').className = 'badge INFERRED';
+  document.getElementById('hdr-state-pill').textContent = 'RUNNING';
+  document.getElementById('sb-case-info').textContent = `Investigating: ${cleanTarget}`;
+  switchView('overview');
+
+  let caseId = null;
+  try {
+    // POST to create and start the investigation with selected mode
+    const res = await fetch('/api/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: cleanTarget,
+        inspectionMode: inspectionMode,
+        expectedContext: document.getElementById('qr-expected-context')?.value || 'NONE'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const created = await res.json();
+    caseId = created.caseId;
+
+    document.getElementById('hdr-case-id').textContent = `CASE #${caseId}`;
+    document.getElementById('sb-case-info').textContent = `Case #${caseId} · ${cleanTarget}`;
+
+    // Store a minimal activeCase ref for export
+    window.activeCase = activeCase = { id: caseId, target: cleanTarget, schema: null };
+
+  } catch (err) {
+    document.getElementById('hdr-state-pill').className = 'badge CRITICAL';
+    document.getElementById('hdr-state-pill').textContent = 'ERROR';
+    document.getElementById('ov-finding-headline').textContent = `Investigation Failed: ${err.message}`;
+    return;
+  }
+
+  // Open SSE stream to receive live telemetry
+  const evtSource = new EventSource(`/api/cases/${caseId}/events`);
+
+  evtSource.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+
+      // SSE sends { event, schema } on snapshot, or raw events
+      const schema = msg.schema || null;
+      if (schema) {
+        if (window.activeCase) window.activeCase.schema = schema;
+        if (activeCase) activeCase.schema = schema;
+        updateCaseUI(schema);
+
+        const done = schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE' || schema.status === 'BLOCKED';
+        if (done) {
+          document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
+          document.getElementById('hdr-state-pill').textContent = schema.status;
+          evtSource.close();
+        }
+      } else if (msg.event === 'complete' || msg.event === 'stage') {
+        // Fetch latest schema on any stage/complete event
+        const _fetchLatestSchema = () => fetch(`/api/cases/${caseId}`)
+          .then(r => r.json())
+          .then(schema => {
+            if (window.activeCase) window.activeCase.schema = schema;
+            if (activeCase) activeCase.schema = schema;
+            updateCaseUI(schema);
+            const done = schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE' || schema.status === 'BLOCKED';
+            if (done) {
+              document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
+              document.getElementById('hdr-state-pill').textContent = schema.status;
+              evtSource.close();
+            }
+          })
+          .catch(() => {});
+        _fetchLatestSchema();
+        // Delayed re-fetch: Playwright screenshot write may finish slightly after complete event
+        if (msg.event === 'complete') {
+          setTimeout(_fetchLatestSchema, 1200);
+        }
+      }
+    } catch {}
+  };
+
+  evtSource.onerror = () => {
+    // SSE closed — fetch final schema (with delay to allow screenshot write to complete)
+    if (caseId) {
+      const _finalFetch = () => fetch(`/api/cases/${caseId}`)
+        .then(r => r.json())
+        .then(schema => {
+          if (window.activeCase) window.activeCase.schema = schema;
+          if (activeCase) activeCase.schema = schema;
+          updateCaseUI(schema);
+          document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
+          document.getElementById('hdr-state-pill').textContent = schema.status || 'DONE';
+        })
+        .catch(() => {});
+      _finalFetch();
+      setTimeout(_finalFetch, 1500);
+    }
+    evtSource.close();
+  };
+}
+
+
+// ── Update Workspace UI ───────────────────────────────────────────────────
+
+function updateCaseUI(schema) {
+  if (!schema) return;
+
+  // Header & Status bar
+  document.getElementById('hdr-case-id').textContent = `CASE #${schema.id}`;
+  document.getElementById('hdr-target-display').textContent = schema.target;
+  document.getElementById('side-ev-count').textContent = schema.evidence.length;
+  document.getElementById('side-bp-count').textContent = schema.trustBreakpoints.length;
+  document.getElementById('side-bp-count').classList.toggle('hidden', schema.trustBreakpoints.length === 0);
+
+  // 1. OVERVIEW FINDINGS
+  const findingsBanner = document.getElementById('ov-findings-banner');
+  findingsBanner.className = `findings-banner ${schema.assessment.riskLevel || 'UNKNOWN'}`;
+  document.getElementById('ov-finding-headline').textContent = schema.assessment.headline || 'Investigation in Progress';
+  document.getElementById('ov-risk-badge').className = `badge ${schema.assessment.riskLevel}`;
+  document.getElementById('ov-risk-badge').textContent = schema.assessment.riskLevel;
+  document.getElementById('ov-finding-explanation').textContent = schema.assessment.summary || 'Executing forensic intelligence pipeline...';
+
+  // Rule Engine Score pill in the Overview banner
+  const ovRuleRes = schema.ruleEngineResult;
+  const rulePill = document.getElementById('ov-rule-score-pill');
+  if (rulePill && ovRuleRes && ovRuleRes.ruleScore !== null) {
+    const ruleClassColors = {
+      SAFE:         { bg:'#064e3b', color:'#34d399', border:'#065f46' },
+      UNDER_REVIEW: { bg:'#422006', color:'#fbbf24', border:'#713f12' },
+      PHISHING:     { bg:'#450a0a', color:'#f87171', border:'#7f1d1d' }
+    };
+    const cc = ruleClassColors[ovRuleRes.classification] || ruleClassColors.UNDER_REVIEW;
+    rulePill.style.display = 'inline-flex';
+    document.getElementById('ov-rule-score-val').textContent = ovRuleRes.ruleScore;
+    const classBadge = document.getElementById('ov-rule-class-badge');
+    classBadge.textContent = ovRuleRes.classification;
+    classBadge.setAttribute('style',
+      `display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:${cc.bg};color:${cc.color};border:1px solid ${cc.border};`
+    );
+  }
+
+  const whyEl = document.getElementById('ov-finding-why');
+  if (schema.assessment.reasons && schema.assessment.reasons.length > 0) {
+    whyEl.style.display = 'block';
+    whyEl.innerHTML = `<strong style="color:var(--blue);">Forensic Rationale:</strong><br>${schema.assessment.reasons.map(r => `• ${esc(r)}`).join('<br>')}`;
+  } else {
+    whyEl.style.display = 'none';
+  }
+
+  // Coverage Grid
+  for (const [k, st] of Object.entries(schema.coverage)) {
+    const el = document.getElementById(`cov-${k}`);
+    if (el) {
+      el.className = `cov-status ${st}`;
+      el.textContent = st;
+    }
+  }
+
+  // Page Intelligence Summary
+  const ovSummaryCard = document.getElementById('ov-page-intelligence-summary');
+  const pageIntent = schema.pageAnalysis?.intent;
+  if (pageIntent && pageIntent.summary) {
+    ovSummaryCard.style.display = 'flex';
+    document.getElementById('ov-summary-intent-badge').textContent = `${pageIntent.primary} (${(pageIntent.confidence * 100).toFixed(0)}%)`;
+    document.getElementById('ov-summary-content').textContent = pageIntent.summary.text || 'Summary compiled.';
+  } else {
+    ovSummaryCard.style.display = 'none';
+  }
+
+  // Breakpoints
+  const bpContainer = document.getElementById('ov-breakpoints-container');
+  const bpListPane = document.getElementById('breakpoints-list');
+  if (schema.trustBreakpoints.length > 0) {
+    const bpCardsHtml = schema.trustBreakpoints.map(bp => `
+      <div style="background:var(--red-dim);border:1px solid rgba(244,63,94,0.4);border-radius:4px;padding:12px;margin-bottom:8px;font-family:var(--font-mono);">
+        <div style="color:var(--red);font-weight:700;font-size:11px;margin-bottom:4px;">🚨 TRUST BREAKPOINT: ${esc(bp.type)}</div>
+        <div style="font-size:11px;color:var(--text-primary);">${esc(bp.description)}</div>
+      </div>
+    `).join('');
+    bpContainer.innerHTML = bpCardsHtml;
+    bpListPane.innerHTML = bpCardsHtml;
+  } else {
+    bpContainer.innerHTML = '';
+    bpListPane.innerHTML = '<div class="empty-state">No trust boundaries broken.</div>';
+  }
+
+  // Top Evidence in Overview
+  if (schema.evidence.length > 0) {
+    document.getElementById('ov-top-evidence').innerHTML = schema.evidence.slice(0, 4).map(e => `
+      <div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border-subtle);font-family:var(--font-mono);font-size:10.5px;">
+        <span class="badge ${e.type}">${e.type}</span>
+        <strong style="color:var(--blue);">${e.id}</strong>
+        <span style="color:var(--text-secondary);">${esc(e.title)}</span>
+      </div>
+    `).join('');
+  }
+
+  // 2. URL INTELLIGENCE
+  const url = schema.urlAnalysis;
+  const urlNativeBanner = document.getElementById('url-native-banner');
+  const urlNativeDesc = document.getElementById('url-native-desc');
+  if (url.isNativeUri || (url.protocol && !url.protocol.startsWith('http'))) {
+    if (urlNativeBanner) urlNativeBanner.style.display = 'block';
+    if (urlNativeDesc) urlNativeDesc.innerHTML = `Target <code>${esc(schema.target)}</code> is a native <strong>${esc(url.payloadType || 'Protocol')}</strong> URI scheme. Web lexical rules evaluate HTTP/HTTPS URLs; native payment parameters and recipient integrity are analyzed below and in the <a href="#" onclick="switchView('qr');return false;" style="color:var(--blue);text-decoration:underline;">QR Code Guardian</a> view.`;
+  } else {
+    if (urlNativeBanner) urlNativeBanner.style.display = 'none';
+  }
+  document.getElementById('url-raw').textContent = url.rawInput || '—';
+  document.getElementById('url-norm').textContent = url.normalizedUrl || '—';
+  document.getElementById('url-proto').textContent = url.protocol || '—';
+  document.getElementById('url-host').textContent = url.hostname || '—';
+  document.getElementById('url-port').textContent = url.port || 'Standard (80/443)';
+  document.getElementById('url-path').textContent = url.pathname || '—';
+  document.getElementById('url-query').textContent = url.query || 'None';
+  document.getElementById('url-frag').textContent = url.fragment || 'None';
+
+  const mod = schema.modelResult;
+  document.getElementById('url-model-name').textContent = mod.modelName ? `${mod.modelName} (v${mod.modelVersion})` : '—';
+  document.getElementById('url-model-pred').textContent = mod.prediction || '—';
+  document.getElementById('url-model-prob-phish').textContent = mod.probabilityPhishing !== null ? `${(mod.probabilityPhishing * 100).toFixed(2)}%` : '—';
+  document.getElementById('url-model-prob-legit').textContent = mod.probabilityLegitimate !== null ? `${(mod.probabilityLegitimate * 100).toFixed(2)}%` : '—';
+  document.getElementById('url-model-conf').textContent = mod.confidenceLevel || '—';
+  document.getElementById('url-model-abstain').textContent = mod.abstain ? `YES (${mod.abstainReason})` : 'NO';
+
+  // 2.5. URL RULE ENGINE LEDGER (URL Intelligence view)
+  const ruleRes = schema.ruleEngineResult;
+  if (ruleRes && ruleRes.ruleScore !== null) {
+    const badgeEl = document.getElementById('url-rule-badge');
+    badgeEl.className = `badge ${ruleRes.classification === 'SAFE' ? 'OBSERVED' : (ruleRes.classification === 'PHISHING' ? 'CRITICAL' : 'INFERRED')}`;
+    badgeEl.textContent = ruleRes.classification;
+    document.getElementById('url-rule-score-badge').textContent = `${ruleRes.ruleScore} / 100`;
+    document.getElementById('url-rule-expl').textContent = ruleRes.explanation || 'Rule evaluation complete.';
+
+    if (ruleRes.rulesEvaluated && ruleRes.rulesEvaluated.length > 0) {
+      document.getElementById('url-rules-tbody').innerHTML = ruleRes.rulesEvaluated.map(r => `
+        <tr style="${r.triggered ? 'background:rgba(244,63,94,0.06);' : ''}">
+          <td><strong style="color:var(--blue);font-family:var(--font-mono);">${esc(r.ruleId)}</strong></td>
+          <td>${esc(r.name)}</td>
+          <td><span class="badge ${r.category === 'HOST' ? 'EXTERNAL' : 'OBSERVED'}">${esc(r.category)}</span></td>
+          <td><span class="badge ${r.severity}">${esc(r.severity)}</span></td>
+          <td style="font-family:var(--font-mono);font-size:10px;">${esc(r.observedValue)}</td>
+          <td><strong style="color:${r.triggered ? 'var(--red)' : 'var(--text-muted)'};">${r.triggered ? '+' + r.contribution : '0'}</strong></td>
+          <td style="color:var(--text-secondary);font-size:10px;">${esc(r.explanation)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // ── Rule Diagnostics pane (full ledger with filter support)
+    _rdAllRules = ruleRes.rulesEvaluated || [];
+    populateRuleDiagnostics(_rdAllRules, false);
+    const rdBadge = document.getElementById('rd-classification-badge');
+    rdBadge.className = `badge ${ruleRes.classification === 'SAFE' ? 'OBSERVED' : (ruleRes.classification === 'PHISHING' ? 'CRITICAL' : 'INFERRED')}`;
+    rdBadge.textContent = ruleRes.classification;
+    document.getElementById('rd-score-val').textContent = `${ruleRes.ruleScore} / 100`;
+    document.getElementById('rd-category-val').textContent = ruleRes.classification;
+    document.getElementById('rd-triggered-count').textContent = `${ruleRes.rulesTriggered.length} / ${ruleRes.rulesEvaluated.length} Rules Triggered`;
+    document.getElementById('rd-score-explanation').textContent = ruleRes.explanation || 'No rules triggered.';
+    if (ruleRes.categoryBreakdown) {
+      const cb = ruleRes.categoryBreakdown;
+      document.getElementById('rd-cap-host').textContent = `${cb.HOST || 0} pts`;
+      document.getElementById('rd-cap-structure').textContent = `${cb.STRUCTURE || 0} pts`;
+      document.getElementById('rd-cap-lexical').textContent = `${cb.LEXICAL || 0} pts`;
+      document.getElementById('rd-cap-encoding').textContent = `${cb.ENCODING || 0} pts`;
+      document.getElementById('rd-cap-obscuration').textContent = `${cb.OBSCURATION || 0} pts`;
+    }
+  }
+
+  if (url.features) {
+    document.getElementById('url-features-tbody').innerHTML = Object.entries(url.features).map(([name, val]) => `
+      <tr>
+        <td style="color:var(--blue);">${esc(name)}</td>
+        <td style="color:var(--text-muted);">${typeof val === 'number' && (val === 0 || val === 1) ? 'binary' : (typeof val === 'number' ? 'numeric' : 'text')}</td>
+        <td style="font-weight:700;word-break:break-all;">${esc(String(val))}</td>
+        <td style="color:var(--text-muted);font-size:9.5px;">${url.isNativeUri ? 'Decoded protocol parameter' : 'Extracted lexical feature metric'}</td>
+      </tr>
+    `).join('');
+  }
+
+  if (url.isNativeUri) {
+    document.getElementById('url-model-pred').textContent = `NATIVE_${url.payloadType || 'PAYLOAD'}`;
+    document.getElementById('url-model-conf').textContent = '100% (Protocol Scheme)';
+    const ruleBadge = document.getElementById('url-rule-badge');
+    if (ruleBadge && (!ruleRes || !ruleRes.classification)) {
+      ruleBadge.className = 'badge OBSERVED';
+      ruleBadge.textContent = 'PROTOCOL_URI';
+      document.getElementById('url-rule-score-badge').textContent = 'N/A';
+      document.getElementById('url-rule-expl').textContent = `Target is a native ${url.payloadType || 'Protocol'} URI. Evaluated in QR Guardian and Payment Integrity.`;
+      const tbody = document.getElementById('url-rules-tbody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--blue);">Target is a native ${url.payloadType || 'Protocol'} URI. Web lexical rules evaluate HTTP web pages. Review the QR Guardian panel for payment integrity.</td></tr>`;
+    }
+  }
+
+  // 3. DOMAIN & HOST
+  const dom = schema.domainAnalysis;
+  document.getElementById('dom-hostname').textContent = dom.hostname || '—';
+  document.getElementById('dom-reg-domain').textContent = dom.registrableDomain || '—';
+  document.getElementById('dom-subdomains').textContent = dom.subdomains.length ? dom.subdomains.join(', ') : 'None (apex)';
+  document.getElementById('dom-ips').textContent = dom.ipAddresses.length ? dom.ipAddresses.join(', ') : 'None resolved';
+  document.getElementById('dom-ns').textContent = dom.nameservers.length ? dom.nameservers.join(', ') : 'Standard authority';
+  document.getElementById('dom-asn').textContent = dom.asn || '—';
+  document.getElementById('dom-tls').textContent = dom.tlsMetadata ? dom.tlsMetadata.protocol : 'Unverified';
+  document.getElementById('dom-source').textContent = dom.source || '—';
+
+  if (dom.dnsRecords.length > 0) {
+    document.getElementById('dom-records-tbody').innerHTML = dom.dnsRecords.map(r => `
+      <tr><td><span class="badge EXTERNAL">${r.type}</span></td><td>${esc(r.value)}</td><td>${r.ttl}s</td></tr>
+    `).join('');
+  }
+
+  // 4. HTTP TRACE
+  const http = schema.httpAnalysis;
+  document.getElementById('http-status').textContent = http.statusCode ? `${http.statusCode} ${http.statusText}` : (http.error || 'Pending');
+  document.getElementById('http-init-url').textContent = http.initialUrl || '—';
+  document.getElementById('http-final-url').textContent = http.finalUrl || '—';
+  document.getElementById('http-redirect-count').textContent = http.redirectCount;
+  document.getElementById('http-latency').textContent = http.latencyMs ? `${http.latencyMs}ms` : '—';
+  document.getElementById('http-content-type').textContent = http.contentType || '—';
+  document.getElementById('http-server').textContent = http.serverHeader || 'Hidden/Unspecified';
+
+  if (http.headers && Object.keys(http.headers).length > 0) {
+    document.getElementById('http-headers-tbody').innerHTML = Object.entries(http.headers).map(([k, v]) => `
+      <tr><td style="color:var(--text-muted);">${esc(k)}</td><td>${esc(v)}</td></tr>
+    `).join('');
+  }
+
+  // 5. WEBSITE INTELLIGENCE
+  const page = schema.pageAnalysis;
+  const pageNativeBanner = document.getElementById('page-native-banner');
+  const pageNativeDesc = document.getElementById('page-native-desc');
+  if (page.isNativePayload || url.isNativeUri) {
+    if (pageNativeBanner) pageNativeBanner.style.display = 'block';
+    if (pageNativeDesc) pageNativeDesc.innerHTML = `Target <code>${esc(schema.target)}</code> executes as a direct native protocol action (such as a UPI money transfer or Wi-Fi configuration). It does not download an HTML webpage document. Forensics and intent breakdown are compiled in the <a href="#" onclick="switchView('intent');return false;" style="color:var(--blue);text-decoration:underline;">Page Intent ML</a> and <a href="#" onclick="switchView('qr');return false;" style="color:var(--blue);text-decoration:underline;">QR Guardian</a> panels.`;
+  } else {
+    if (pageNativeBanner) pageNativeBanner.style.display = 'none';
+  }
+  // Sync top header Dual Mode Selector buttons
+  const currentMode = schema.inspectionMode || 'URL_ONLY';
+  setHdrModeButtons(currentMode);
+
+  const btnCancelLive = document.getElementById('btn-cancel-live');
+  if (btnCancelLive) {
+    if (currentMode === 'ISOLATED_LIVE' && (schema.status === 'RUNNING' || schema.status === 'ISOLATED_LIVE_AUTHORIZED')) {
+      btnCancelLive.style.display = 'inline-block';
+    } else {
+      btnCancelLive.style.display = 'none';
+    }
+  }
+
+  // Render Inspected Webpage Screenshot Preview
+  const shotCard = document.getElementById('web-screenshot-card');
+  const shotBadge = document.getElementById('web-screenshot-badge');
+  const shotEmpty = document.getElementById('web-screenshot-empty');
+  const shotView = document.getElementById('web-screenshot-view');
+  const shotImg = document.getElementById('web-screenshot-img');
+  const shotDl = document.getElementById('web-screenshot-dl-btn');
+  const shotReason = document.getElementById('web-screenshot-reason');
+
+  const hasShot = (schema.pageAnalysis?.screenshotAvailable || schema.liveInspection?.screenshotCaptured) && schema.id;
+  if (hasShot) {
+    if (shotBadge) {
+      shotBadge.textContent = 'CAPTURED BY ISOLATED CHROMIUM WORKER';
+      shotBadge.style.background = 'rgba(168,85,247,0.2)';
+      shotBadge.style.color = '#c084fc';
+      shotBadge.style.borderColor = '#c084fc';
+    }
+    if (shotEmpty) shotEmpty.style.display = 'none';
+    if (shotView) shotView.style.display = 'flex';
+    if (shotImg) shotImg.src = `/api/cases/${schema.id}/screenshot?t=${Date.now()}`;
+    if (shotDl) {
+      shotDl.href = `/api/cases/${schema.id}/screenshot`;
+      shotDl.download = `trustlayer-case-${schema.id}-screenshot.png`;
+    }
+  } else {
+    if (shotBadge) {
+      shotBadge.textContent = 'UNAVAILABLE';
+      shotBadge.style.background = '#1e293b';
+      shotBadge.style.color = '#94a3b8';
+      shotBadge.style.borderColor = '#334155';
+    }
+    if (shotEmpty) shotEmpty.style.display = 'flex';
+    if (shotView) shotView.style.display = 'none';
+    if (shotReason) {
+      if (schema.inspectionMode === 'ISOLATED_LIVE') {
+        shotReason.textContent = 'Live inspection was executed, but target page could not be rendered or server was unreachable.';
+      } else {
+        shotReason.textContent = 'Mode A (URL-Only) does not connect to target. Run Mode C (Isolated Live Inspection) to render page and capture browser preview.';
+      }
+    }
+  }
+
+  // Render 8-Question Website Intelligence Summary
+  const intelBadge = document.getElementById('web-intel-mode-badge');
+  const intelContent = document.getElementById('web-intel-8q-content');
+  if (intelBadge) intelBadge.textContent = currentMode === 'ISOLATED_LIVE' ? 'MODE C: ISOLATED LIVE' : 'MODE A: URL-ONLY';
+
+  if (intelContent) {
+    const q = schema.intelligenceSummary || {};
+    intelContent.innerHTML = `
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">1. What is this website?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.whatIsThis || 'Awaiting page analysis...')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">2. What can visitors do?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.whatCanVisitorsDo || 'No actions observed.')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">3. What information does it request?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.whatInfoRequested || 'No form fields detected.')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">4. Where could submitted data go?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.whereCouldItGo || 'No form submissions detected.')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">5. What network activity was observed?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.networkActivity || 'No active requests captured in this mode.')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--blue);">6. Does observed behaviour match its claims?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${esc(q.behaviourMatch || 'Unverified.')}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--yellow);">7. What makes it suspicious, if anything?</strong>
+        <div style="color:var(--text-primary);margin-top:4px;">${q.suspicionIndicators && q.suspicionIndicators.length ? q.suspicionIndicators.map(s => '• ' + esc(s)).join('<br/>') : 'No specific suspicion breakpoints triggered.'}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;">
+        <strong style="color:var(--text-muted);">8. What was not inspected / Limitations?</strong>
+        <div style="color:var(--text-secondary);margin-top:4px;">${q.notInspected && q.notInspected.length ? q.notInspected.map(l => '• ' + esc(l)).join('<br/>') : 'Inspection completed within budget.'}</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('page-title').textContent = page.title || (page.status === 'NOT_RUN' ? 'Analysis Not Run' : 'None Detected');
+  document.getElementById('page-nodes').textContent = page.domNodes || 0;
+  document.getElementById('page-size').textContent = `${page.htmlBytes || 0} B`;
+  document.getElementById('page-fingerprint').textContent = page.domFingerprint || '—';
+  document.getElementById('page-headings').textContent = page.headings && page.headings.length ? page.headings.join(' | ') : 'None detected';
+  document.getElementById('page-buttons').textContent = page.buttons && page.buttons.length ? page.buttons.join(', ') : 'None detected';
+
+  if (page.forms && page.forms.length > 0) {
+    document.getElementById('page-forms-area').innerHTML = page.forms.map(f => `
+      <div style="background:var(--bg-panel);border:1px solid var(--border);padding:8px;border-radius:4px;margin-bottom:6px;font-family:var(--font-mono);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <strong style="color:var(--text-primary);">${f.method} → ${esc(f.action)}</strong>
+          ${f.isExternal ? '<span class="badge CRITICAL">EXTERNAL EXFIL</span>' : '<span class="badge OBSERVED">SAME-ORIGIN</span>'}
+        </div>
+        <div style="font-size:9.5px;color:var(--text-muted);">
+          Fields: ${(f.inputs && f.inputs.length > 0) ? f.inputs.map(i => `${i.name}${i.isPassword ? '🔒' : ''}`).join(', ') : (f.fields.join(', ') || 'none')}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('page-forms-area').innerHTML = '<div class="empty-state">No input forms observed on this webpage.</div>';
+  }
+
+  if (page.scripts && page.scripts.length > 0) {
+    document.getElementById('page-scripts-area').innerHTML = page.scripts.map(s => `
+      <div style="padding:4px 0;border-bottom:1px solid var(--border-subtle);font-family:var(--font-mono);font-size:10px;">
+        ${s.isInline ? '<span class="badge OBSERVED">INLINE SCRIPT</span>' : `<span class="badge ${s.isExternal ? 'HIGH' : 'LOW'}">${s.isExternal ? 'EXTERNAL' : 'LOCAL'}</span> ${esc(s.src)}`}
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('page-scripts-area').innerHTML = '<div class="empty-state">No external script dependencies observed.</div>';
+  }
+
+  // 6. NETWORK WATERFALL
+  const net = schema.networkAnalysis;
+  if (net.requests && net.requests.length > 0) {
+    document.getElementById('network-waterfall-tbody').innerHTML = net.requests.map(r => `
+      <tr>
+        <td>${r.time}</td><td><span class="badge OBSERVED">${r.method}</span></td>
+        <td style="color:var(--blue);">${esc(r.host)}${esc(r.path)}</td>
+        <td style="color:var(--green);font-weight:700;">${r.status}</td>
+        <td>${r.type}</td><td>${r.size}</td><td>${r.duration}</td>
+      </tr>
+    `).join('');
+  } else {
+    document.getElementById('network-waterfall-tbody').innerHTML = '<tr><td colspan="7" class="empty-state">No secondary network requests captured.</td></tr>';
+  }
+
+  // 7. PAGE INTENT ML
+  const intent = page.intent || {};
+  document.getElementById('intent-primary-val').textContent = intent.primary || 'UNKNOWN';
+  document.getElementById('intent-secondary-val').textContent = intent.secondary || 'None';
+  document.getElementById('intent-conf-val').textContent = intent.confidence ? `${(intent.confidence * 100).toFixed(1)}%` : '—';
+  document.getElementById('intent-rule-val').textContent = intent.ruleBaseline || '—';
+  document.getElementById('intent-consist-val').textContent = intent.intentConsistency || '—';
+  document.getElementById('intent-claimed-val').textContent = intent.claimedPurpose || '—';
+  document.getElementById('intent-observed-val').textContent = intent.observedPurpose || '—';
+
+  const actionsEl = document.getElementById('intent-actions-chips');
+  if (intent.requestedActions && intent.requestedActions.length > 0) {
+    actionsEl.innerHTML = intent.requestedActions.map(a => `<span class="badge MODEL">${esc(a)}</span>`).join('');
+  } else { actionsEl.innerHTML = '<span class="badge LOW">PASSIVE BROWSING (NO SUBMISSION)</span>'; }
+
+  const dataEl = document.getElementById('intent-data-chips');
+  if (intent.requestedData && intent.requestedData.length > 0) {
+    dataEl.innerHTML = intent.requestedData.map(d => `<span class="badge ${['PASSWORD','OTP_CODE','CREDIT_CARD_NUMBER','CARD_CVV','GOVERNMENT_ID'].includes(d) ? 'CRITICAL' : 'INFERRED'}">${esc(d)}</span>`).join('');
+  } else { dataEl.innerHTML = '<span class="badge LOW">NONE (NO SENSITIVE DATA REQUESTED)</span>'; }
+
+  const mismatchEl = document.getElementById('intent-mismatch-banner');
+  if (intent.purposeMismatch) {
+    mismatchEl.style.display = 'block';
+    mismatchEl.innerHTML = `
+      <div style="background:var(--red-dim);border:1px solid rgba(244,63,94,0.4);padding:10px;border-radius:4px;margin-top:10px;font-family:var(--font-mono);font-size:11px;">
+        <strong style="color:var(--red);">🚨 PURPOSE MISMATCH DETECTED:</strong> ${esc(intent.mismatchReason)}
+      </div>
+    `;
+  } else { mismatchEl.style.display = 'none'; }
+
+
+  // Populate Structured Intent Summary in Page Intent ML panel
+  const intentSummaryCard = document.getElementById('intent-summary-card');
+  const intentSummaryText = document.getElementById('intent-summary-text');
+  const intentSummaryBadge = document.getElementById('intent-summary-badge');
+  if (intent.summary && intentSummaryText) {
+    if (intentSummaryCard) intentSummaryCard.style.display = 'block';
+    intentSummaryText.textContent = intent.summary.text || 'Structured summary generated.';
+    if (intentSummaryBadge) {
+      intentSummaryBadge.textContent = `${intent.primary || 'INTENT'} (${((intent.confidence || 1.0) * 100).toFixed(0)}%)`;
+    }
+  }
+  // 8. IDENTITY & ENTITY
+  const id = schema.identityAnalysis;
+  document.getElementById('id-claimed').textContent = id.claimedEntity || 'None (Self-Hosted)';
+  document.getElementById('id-observed').textContent = id.observedEntity || '—';
+  document.getElementById('id-payment').textContent = id.paymentRecipient || 'None';
+  document.getElementById('id-continuity').textContent = id.identityContinuity;
+  document.getElementById('id-reason').textContent = id.discontinuityReason || 'No discontinuities observed.';
+
+  // 9. DATA FLOW TOPOLOGY
+  if (page.dataFlow && page.dataFlow.length > 0) {
+    document.getElementById('dataflow-tbody').innerHTML = page.dataFlow.map(df => `
+      <tr>
+        <td style="font-weight:700;">${esc(df.fieldName)} <span style="color:var(--text-muted);font-size:9.5px;">(${esc(df.fieldType)})</span></td>
+        <td><span class="badge ${df.isSensitive ? 'CRITICAL' : 'OBSERVED'}">${esc(df.dataCategory)}</span></td>
+        <td style="color:var(--blue);">${esc(df.formMethod)} → ${esc(df.formAction)}</td>
+        <td>${esc(df.destinationHost)}</td>
+        <td><span class="badge ${df.riskLevel === 'CRITICAL' ? 'CRITICAL' : (df.isExternal ? 'HIGH' : 'LOW')}">${df.isExternal ? 'EXTERNAL DESTINATION' : 'SAME-ORIGIN'}</span></td>
+      </tr>
+    `).join('');
+  } else {
+    document.getElementById('dataflow-tbody').innerHTML = '<tr><td colspan="5" class="empty-state">No form data routes or external exfiltration destinations observed.</td></tr>';
+  }
+
+  // 10. EVIDENCE LEDGER
+  if (schema.evidence.length > 0) {
+    document.getElementById('evidence-table-body').innerHTML = schema.evidence.map(e => `
+      <tr style="cursor:pointer;" onclick="this.nextElementSibling.classList.toggle('hidden')">
+        <td><strong style="color:var(--blue);">${e.id}</strong></td>
+        <td><span class="badge ${e.type}">${e.type}</span></td>
+        <td style="color:var(--text-muted);">${e.category}</td>
+        <td>
+          <div style="font-weight:700;">${esc(e.title)}</div>
+          <div style="font-size:9.5px;color:var(--text-secondary);margin-top:2px;">${esc(e.detail)}</div>
+        </td>
+        <td style="color:var(--text-muted);">${new Date(e.ts).toLocaleTimeString()}</td>
+      </tr>
+      <tr class="hidden" style="background:#080c10;">
+        <td colspan="5" style="padding:10px;font-family:var(--font-mono);font-size:10px;">
+          <strong style="color:var(--blue);">RAW TELEMETRY RECORD (${e.id}):</strong>
+          <pre style="margin-top:4px;color:var(--green);max-height:160px;overflow:auto;background:var(--bg-card);padding:8px;border-radius:3px;">${esc(JSON.stringify(e.data || {}, null, 2))}</pre>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // 11. TIMELINE
+  if (schema.timeline.length > 0) {
+    document.getElementById('timeline-body').innerHTML = schema.timeline.map(t => `
+      <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-family:var(--font-mono);font-size:11px;">
+        <div style="color:var(--text-muted);min-width:65px;">${new Date(t.ts).toLocaleTimeString()}</div>
+        <span class="badge ${t.type}">${t.type}</span>
+        <div><strong>${t.evidenceId ? `${t.evidenceId}: ` : ''}</strong>${esc(t.event)}</div>
+      </div>
+    `).join('');
+  }
+
+  // 12. DECEPTION PATH
+  if (schema.deceptionPath) {
+    document.getElementById('dec-perceived-steps').innerHTML = schema.deceptionPath.perceived.map(s => `
+      <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-subtle);">
+        <div style="font-size:18px;">${s.icon}</div>
+        <div><div style="font-size:9.5px;color:var(--text-muted);">${esc(s.step)}</div><strong>${esc(s.label)}</strong></div>
+      </div>
+    `).join('');
+    document.getElementById('dec-actual-steps').innerHTML = schema.deceptionPath.actual.map(s => `
+      <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-subtle);">
+        <div style="font-size:18px;">${s.icon}</div>
+        <div><div style="font-size:9.5px;color:var(--text-muted);">${esc(s.step)}</div><strong style="color:var(--red);">${esc(s.label)}</strong></div>
+      </div>
+    `).join('');
+  }
+
+  // 13. PAYMENT ANALYSIS
+  if (schema.targetType === 'UPI' || schema.target.startsWith('upi://')) {
+    const qrItem = schema.evidence.find(e => e.category === 'entity' && e.data?.payeeVpa);
+    if (qrItem) {
+      document.getElementById('pay-vpa').textContent = qrItem.data.payeeVpa || '—';
+      document.getElementById('pay-name').textContent = qrItem.data.payeeName || '—';
+      document.getElementById('pay-amount').textContent = qrItem.data.amount ? `₹${qrItem.data.amount}` : 'Open Amount';
+      document.getElementById('pay-note').textContent = qrItem.data.note || 'None';
+      const isScam = schema.trustBreakpoints.some(b => b.type === 'UPI_REVERSE_DEBIT_TRAP');
+      document.getElementById('pay-trap-badge').className = `badge ${isScam ? 'CRITICAL' : 'OBSERVED'}`;
+      document.getElementById('pay-trap-badge').textContent = isScam ? 'REVERSE-DEBIT TRAP' : 'STANDARD UPI';
+    }
+  }
+
+  // 14. FORENSIC REPORT
+  if (schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE') {
+    document.getElementById('report-container').innerHTML = `
+      <div style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h2 style="font-family:var(--font-mono);font-size:13px;color:var(--blue);margin:0;">DIGITAL FRAUD FORENSIC REPORT — ${schema.id}</h2>
+          <div style="color:var(--text-muted);font-size:10px;font-family:var(--font-mono);margin-top:2px;">Generated: ${new Date(schema.completedAt || Date.now()).toISOString()}</div>
+        </div>
+        <button class="btn btn-primary" onclick="copyCaseJson()">COPY CASE JSON</button>
+      </div>
+      <div class="field-grid" style="margin-bottom:14px;">
+        <span class="field-key">Target Investigated:</span><span class="field-val">${esc(schema.target)}</span>
+        <span class="field-key">Investigation Outcome:</span><strong class="field-val" style="color:var(--text-primary);">${esc(schema.assessment.headline)}</strong>
+        <span class="field-key">Risk Classification:</span><span class="badge ${schema.assessment.riskLevel}">${schema.assessment.riskLevel}</span>
+        <span class="field-key">Verification State:</span><span class="field-val">${schema.assessment.verificationState}</span>
+      </div>
+      ${schema.pageAnalysis?.intent?.summary?.text ? `<div style="background:var(--bg-panel);border:1px solid var(--border);padding:10px;border-radius:4px;margin-bottom:12px;font-family:var(--font-mono);font-size:10px;line-height:1.6;white-space:pre-wrap;">${esc(schema.pageAnalysis.intent.summary.text)}</div>` : ''}
+      <div style="font-family:var(--font-mono);font-size:11px;line-height:1.7;color:var(--text-secondary);">
+        <strong style="color:var(--text-primary);">Investigation Narrative:</strong>
+        ${schema.attackStory.map(s => `<div>${esc(s)}</div>`).join('')}
+      </div>
+    `;
+  }
+
+  // QR, Campaign, and Payment rendering
+  renderQRPreview(schema);
+  renderRelatedCampaigns(schema);
+  renderPaymentIntegrity(schema);
+}
+
+// ── Graph Render ──────────────────────────────────────────────────────────
+function renderGraph() {
+  if (!activeCase) return;
+  const svg = document.getElementById('evidence-svg-canvas');
+  const { nodes, edges } = activeCase.schema.graph;
+  if (!svg || nodes.length === 0) return;
+
+  const W = svg.clientWidth || 800;
+  const H = svg.clientHeight || 550;
+  const cx = W / 2, cy = H / 2;
+
+  document.getElementById('graph-node-count').textContent = `${nodes.length} Nodes · ${edges.length} Edges`;
+
+  const nodePositions = {};
+  const N = nodes.length;
+  nodes.forEach((n, i) => {
+    if (i === 0) {
+      nodePositions[n.id] = { x: cx - 180, y: cy };
+    } else {
+      const angle = ((i - 1) / Math.max(N - 1, 1)) * 2 * Math.PI - Math.PI / 2;
+      const radius = Math.min(W, H) * 0.35;
+      nodePositions[n.id] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    }
+  });
+
+  let svgHtml = `<defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f43f5e"/>
+    </marker>
+  </defs>`;
+
+  edges.forEach(e => {
+    const p1 = nodePositions[e.from];
+    const p2 = nodePositions[e.to];
+    if (p1 && p2) {
+      const isExfil = e.type === 'data_flow' || e.label.includes('Exfil');
+      svgHtml += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${isExfil ? '#f43f5e' : '#334155'}" stroke-width="${isExfil ? 2 : 1.5}" stroke-dasharray="${isExfil ? '4,4' : 'none'}" marker-end="url(#${isExfil ? 'arrow-red' : 'arrow'})"/>`;
+      svgHtml += `<text x="${(p1.x+p2.x)/2}" y="${(p1.y+p2.y)/2 - 5}" fill="${isExfil ? '#f43f5e' : '#64748b'}" font-family="monospace" font-size="9" text-anchor="middle">${esc(e.label)}</text>`;
+    }
+  });
+
+  nodes.forEach(n => {
+    const p = nodePositions[n.id];
+    if (!p) return;
+    const isCollector = n.type === 'collector';
+    const fill = isCollector ? '#f43f5e' : (n.type === 'target' ? '#38bdf8' : '#10b981');
+    svgHtml += `
+      <g transform="translate(${p.x},${p.y})">
+        <circle r="16" fill="#0d1219" stroke="${fill}" stroke-width="2"/>
+        <text y="4" fill="#fff" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">${n.type === 'target' ? '🎯' : (isCollector ? '🚨' : '🌐')}</text>
+        <text y="28" fill="${fill}" font-family="monospace" font-size="9.5" font-weight="bold" text-anchor="middle">${esc(n.label.length > 25 ? n.label.substring(0, 22) + '...' : n.label)}</text>
+      </g>
+    `;
+  });
+
+  svg.innerHTML = svgHtml;
+}
+
+// ── Rule Diagnostics JS ─────────────────────────────────────────────────────
+let _rdAllRules = [];
+
+function populateRuleDiagnostics(rules, triggeredOnly) {
+  const filtered = triggeredOnly ? rules.filter(r => r.triggered) : rules;
+  const tbody = document.getElementById('rd-rules-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = filtered.length === 0
+    ? `<tr><td colspan="8" class="empty-state">${triggeredOnly ? 'No rules triggered.' : 'No rules evaluated.'}</td></tr>`
+    : filtered.map(r => `
+      <tr style="${r.triggered ? 'background:rgba(244,63,94,0.06);' : ''}">
+        <td><strong style="color:var(--blue);font-family:var(--font-mono);">${esc(r.ruleId)}</strong></td>
+        <td style="font-size:11px;">${esc(r.name)}</td>
+        <td><span class="badge ${r.category === 'HOST' ? 'EXTERNAL' : 'OBSERVED'}">${esc(r.category)}</span></td>
+        <td><span class="badge ${r.severity}">${esc(r.severity)}</span></td>
+        <td style="font-family:var(--font-mono);font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${esc(String(r.observedValue))}">${esc(String(r.observedValue))}</td>
+        <td style="text-align:center;"><span class="badge ${r.triggered ? 'CRITICAL' : 'OBSERVED'}">${r.triggered ? '✓ TRIGGERED' : '— CLEAR'}</span></td>
+        <td><strong style="color:${r.triggered ? 'var(--red)' : 'var(--text-muted)'};">${r.triggered ? '+' + r.contribution : '0'}</strong></td>
+        <td style="color:var(--text-secondary);font-size:10px;">${esc(r.explanation)}</td>
+      </tr>
+    `).join('');
+}
+
+window.rdShowAll = function() {
+  document.getElementById('btn-rd-all').className = 'btn btn-primary';
+  document.getElementById('btn-rd-triggered').className = 'btn';
+  populateRuleDiagnostics(_rdAllRules, false);
+};
+
+window.rdShowTriggered = function() {
+  document.getElementById('btn-rd-all').className = 'btn';
+  document.getElementById('btn-rd-triggered').className = 'btn btn-primary';
+  populateRuleDiagnostics(_rdAllRules, true);
+};
+
+// ── QR Action Preview & Context Consistency Rendering ───────────────────────
+function renderQRPreview(schema) {
+  if (!schema.qrAnalysis) return;
+  const qa = schema.qrAnalysis;
+  const previewEl = document.getElementById('qr-action-preview');
+  const previewContent = document.getElementById('qr-preview-content');
+  const previewBadge = document.getElementById('qr-preview-type-badge');
+  if (!previewEl || !previewContent) return;
+  previewEl.style.display = 'block';
+  if (previewBadge) previewBadge.textContent = qa.type;
+
+  const ap = qa.actionPreview || {};
+  let html = `<div class="field-grid" style="font-size:11.5px;">`;
+  html += `<span class="field-key">Payload Type:</span><span class="field-val">${esc(qa.type)}</span>`;
+  html += `<span class="field-key">Decoded Target:</span><span class="field-val" style="font-family:var(--font-mono);word-break:break-all;">${esc(qa.target)}</span>`;
+  html += `<span class="field-key">Decoded Action:</span><span class="field-val">${esc(ap.action || qa.type)}</span>`;
+  if (qa.type === 'UPI' && ap.recipient) {
+    html += `<span class="field-key">Payment Recipient VPA:</span><span class="field-val" style="color:var(--amber);">${esc(ap.recipient)}</span>`;
+    html += `<span class="field-key">Merchant Name (QR claim):</span><span class="field-val">${esc(ap.merchantName)}</span>`;
+    html += `<span class="field-key">Amount Requested:</span><strong class="field-val" style="color:var(--red);">${esc(ap.amount)}</strong>`;
+    html += `<span class="field-key">Transaction Note:</span><span class="field-val">${esc(ap.note)}</span>`;
+  } else if (qa.type === 'WIFI') {
+    html += `<span class="field-key">Network SSID:</span><span class="field-val">${esc(ap.ssid)}</span>`;
+    html += `<span class="field-key">Security Type:</span><span class="field-val">${esc(ap.securityType)}</span>`;
+  } else if (qa.type === 'EMAIL') {
+    html += `<span class="field-key">Recipient:</span><span class="field-val">${esc(ap.recipient)}</span>`;
+    html += `<span class="field-key">Subject:</span><span class="field-val">${esc(ap.subject)}</span>`;
+  } else if (qa.type === 'TEL') {
+    html += `<span class="field-key">Phone Number:</span><span class="field-val">${esc(ap.phone)}</span>`;
+  } else if (qa.type === 'SMS') {
+    html += `<span class="field-key">Recipient:</span><span class="field-val">${esc(ap.recipient)}</span>`;
+    html += `<span class="field-key">Message:</span><span class="field-val">${esc(ap.message)}</span>`;
+  }
+  if (ap.warning) {
+    html += `<span class="field-key">⚠ Warning:</span><strong class="field-val" style="color:var(--red);">${esc(ap.warning)}</strong>`;
+  }
+  html += `</div>`;
+  previewContent.innerHTML = html;
+
+  // Context consistency
+  if (schema.qrContextConsistency) {
+    const cc = schema.qrContextConsistency;
+    const ctxBlock = document.getElementById('qr-context-block');
+    if (ctxBlock) {
+      ctxBlock.style.display = 'block';
+      const ccBadge = document.getElementById('qr-context-badge');
+      if (ccBadge) {
+        ccBadge.textContent = cc.status;
+        ccBadge.className = `badge ${cc.status === 'MATCH' ? 'OBSERVED' : cc.status === 'MISMATCH' ? 'CRITICAL' : 'INFERRED'}`;
+      }
+      const e = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      e('qr-ctx-expected', cc.expectedAction);
+      e('qr-ctx-decoded', cc.decodedAction);
+      e('qr-ctx-status', cc.status);
+      e('qr-ctx-explanation', cc.explanation);
+    }
+  }
+}
+
+// ── Related Campaign Memory Rendering ───────────────────────────────────────
+function renderRelatedCampaigns(schema) {
+  if (!schema.relatedCampaigns || !schema.relatedCampaigns.hasMatches) return;
+  const rc = schema.relatedCampaigns;
+  const evidEl = document.getElementById('ov-top-evidence');
+  if (!evidEl) return;
+  evidEl.innerHTML += `<div style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.3);border-radius:6px;">
+    <strong style="color:var(--amber);">🔗 Related Campaign Detected</strong>
+    <p style="font-size:11px;color:var(--text-secondary);margin:4px 0;">${esc(rc.explanation)}</p>
+    ${rc.matches.map(m => `<div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);">
+      Case ${esc(m.caseId)} · ${esc(m.target)} · ${m.sharedFeatures.map(f => f.type).join(', ')}
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── Payment Integrity Rendering ─────────────────────────────────────────────
+function renderPaymentIntegrity(schema) {
+  if (!schema.paymentIntegrity) return;
+  const pi = schema.paymentIntegrity;
+  const payCard = document.getElementById('pay-vpa');
+  if (!payCard) return;
+  const parent = payCard.closest('.card') || payCard.parentElement;
+  if (!parent) return;
+  let integrityHtml = `<div style="margin-top:12px;border-top:1px solid var(--border-subtle);padding-top:10px;">
+    <strong style="font-size:11px;color:var(--blue);">Payment Integrity Check</strong>
+    <div class="field-grid" style="margin-top:6px;">
+      <span class="field-key">VPA Valid:</span><span class="field-val">${pi.isVpaValid ? '✓ Yes' : '✗ No'}</span>
+      <span class="field-key">Reverse Debit Lure:</span><span class="field-val" style="color:${pi.isReverseDebitLure ? 'var(--red)' : 'var(--green)'};">${pi.isReverseDebitLure ? '⚠ DETECTED' : '✓ None'}</span>
+      <span class="field-key">PSP Domain:</span><span class="field-val">${esc(pi.pspDomain || '—')}</span>
+      <span class="field-key">PSP Recognized:</span><span class="field-val">${pi.isPspRecognized ? '✓ Known PSP' : '⚠ Unknown PSP'}</span>
+    </div>
+    ${pi.warnings && pi.warnings.length > 0 ? `<div style="margin-top:6px;color:var(--red);font-size:10px;">${pi.warnings.map(w => `<div>⚠ ${esc(w)}</div>`).join('')}</div>` : ''}
+  </div>`;
+  parent.insertAdjacentHTML('beforeend', integrityHtml);
+}
+
+// ── QR Scanner Controls ───────────────────────────────────────────────────
+let qrStream = null;
+let qrScanLoop = null;
+
+window.injectQRPayload = function(payload, autoInvestigate = true) {
+  const el = document.getElementById('qr-decoded-text');
+  el.textContent = payload;
+  el.style.color = 'var(--blue)';
+  const btn = document.getElementById('btn-investigate-qr');
+  btn.style.display = 'block';
+  btn.onclick = () => triggerCase(payload);
+
+  if (autoInvestigate && payload) {
+    el.innerHTML = `<span>✓ QR Detected: <strong>${payload}</strong> — Launching Investigation Pipeline...</span>`;
+    setTimeout(() => {
+      triggerCase(payload);
+    }, 250);
+  }
+};
+
+document.getElementById('btn-start-camera').addEventListener('click', async () => {
+  const video = document.getElementById('qr-video');
+  const statusEl = document.getElementById('qr-decoded-text');
+  const btn = document.getElementById('btn-start-camera');
+
+  btn.textContent = '⏳ Requesting camera...';
+  btn.disabled = true;
+
+  try {
+    // Try any available camera — fallback to environment if needed
+    try {
+      qrStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch (e1) {
+      qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    }
+    video.srcObject = qrStream;
+    video.style.display = 'block';
+    btn.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🎥 START WEBCAM';
+    document.getElementById('btn-stop-camera').style.display = 'block';
+    statusEl.textContent = '🔍 Point camera at QR code to auto-detect and investigate...';
+    statusEl.style.color = 'var(--text-secondary)';
+
+    // Start live QR detection loop with BarcodeDetector and jsQR fallback
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    qrScanLoop = setInterval(async () => {
+      if (!qrStream || video.readyState < 2) return;
+      try {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (w > 0 && h > 0) {
+          canvas.width = w;
+          canvas.height = h;
+          ctx.drawImage(video, 0, 0, w, h);
+
+          let decoded = null;
+
+          // 1. Native BarcodeDetector (Chrome/Android/macOS)
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new BarcodeDetector({ formats: ['qr_code'] });
+              const codes = await detector.detect(canvas);
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                decoded = codes[0].rawValue;
+              }
+            } catch (e) {}
+          }
+
+          // 2. jsQR canvas fallback (Windows Chromium/Edge/Firefox)
+          if (!decoded && typeof jsQR === 'function') {
+            try {
+              const imgData = ctx.getImageData(0, 0, w, h);
+              const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'attemptBoth' });
+              if (code && code.data) {
+                decoded = code.data;
+              }
+            } catch (e) {}
+          }
+
+          if (decoded) {
+            clearInterval(qrScanLoop);
+            qrScanLoop = null;
+            if (qrStream) {
+              qrStream.getTracks().forEach(t => t.stop());
+              qrStream = null;
+            }
+            video.style.display = 'none';
+            document.getElementById('btn-start-camera').style.display = 'block';
+            document.getElementById('btn-stop-camera').style.display = 'none';
+            injectQRPayload(decoded, true);
+          }
+        }
+      } catch (err) {}
+    }, 150);
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '🎥 START WEBCAM';
+    statusEl.style.color = 'var(--red)';
+    if (err.name === 'NotAllowedError') {
+      statusEl.textContent = '⚠ Camera permission denied. Please allow camera access in your browser settings, then try again.';
+    } else if (err.name === 'NotFoundError') {
+      statusEl.textContent = '⚠ No camera found on this device. Use the test vectors or upload a QR image.';
+    } else {
+      statusEl.textContent = `⚠ Camera error: ${err.message}`;
+    }
+  }
+});
+
+document.getElementById('btn-stop-camera').addEventListener('click', () => {
+  if (qrScanLoop) { clearInterval(qrScanLoop); qrScanLoop = null; }
+  if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+  document.getElementById('qr-video').style.display = 'none';
+  document.getElementById('btn-start-camera').style.display = 'block';
+  document.getElementById('btn-stop-camera').style.display = 'none';
+  document.getElementById('qr-decoded-text').textContent = '(Camera stopped)';
+  document.getElementById('qr-decoded-text').style.color = 'var(--text-muted)';
+});
+
+
+document.getElementById('qr-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('qr-decoded-text');
+  statusEl.textContent = 'Decoding QR image...';
+  statusEl.style.color = 'var(--blue)';
+
+  try {
+    let decoded = null;
+
+    // Load image into canvas
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      const u = URL.createObjectURL(file);
+      i.onload = () => { URL.revokeObjectURL(u); res(i); };
+      i.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Image failed to load')); };
+      i.src = u;
+    });
+
+    const canvas = document.getElementById('qr-canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+
+    // 1. Try native BarcodeDetector on img or canvas
+    if ('BarcodeDetector' in window) {
+      try {
+        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        const barcodes = await detector.detect(img);
+        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+          decoded = barcodes[0].rawValue;
+        }
+      } catch (e) {}
+    }
+
+    // 2. Multi-scale jsQR fallback with contrast enhancement
+    if (!decoded && typeof jsQR === 'function') {
+      const nw = img.naturalWidth || img.width;
+      const nh = img.naturalHeight || img.height;
+      if (nw > 0 && nh > 0) {
+        const testMaxDims = [800, Math.max(nw, nh), 500, 1200];
+        const tested = new Set();
+        for (const maxDim of testMaxDims) {
+          if (decoded) break;
+          const scale = Math.min(1.0, maxDim / Math.max(nw, nh));
+          const w = Math.round(nw * scale);
+          const h = Math.round(nh * scale);
+          const key = w + 'x' + h;
+          if (tested.has(key)) continue;
+          tested.add(key);
+
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          const sctx = c.getContext('2d', { willReadFrequently: true });
+          sctx.drawImage(img, 0, 0, w, h);
+          const imgData = sctx.getImageData(0, 0, w, h);
+          const code = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) {
+            decoded = code.data;
+            break;
+          }
+
+          if (w <= 800) {
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+              const bin = lum > 128 ? 255 : 0;
+              d[i] = bin; d[i+1] = bin; d[i+2] = bin;
+            }
+            const bcode = jsQR(d, w, h, { inversionAttempts: 'attemptBoth' });
+            if (bcode && bcode.data) {
+              decoded = bcode.data;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (decoded) {
+      injectQRPayload(decoded, true);
+      return;
+    }
+
+    // No QR code decoded
+    statusEl.textContent = '⚠ Could not decode QR code from this image. Ensure the image is clear or use the test vectors below.';
+    statusEl.style.color = 'var(--amber)';
+  } catch (err) {
+    statusEl.textContent = `⚠ Decode error: ${err.message}. Try a clearer image or use the test vectors.`;
+    statusEl.style.color = 'var(--amber)';
+  }
+});
+
+// ── Export Report Button ──────────────────────────────────────────────────
+document.getElementById('btn-export-report').addEventListener('click', () => {
+  const current = window.activeCase || activeCase;
+  if (!current || !current.schema) {
+    alert('No active case telemetry to export. Please run or open an investigation first.');
+    return;
+  }
+  const caseId = current.schema.id || current.id || 'CASE';
+  const blob = new Blob([JSON.stringify(current.schema, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${caseId}_FORENSIC_REPORT.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Clock & Utility ───────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('sb-clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Auto-Start Investigation on Query Parameter ───────────────────────────
+(function checkUrlQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const targetParam = params.get('target');
+  const caseIdParam = params.get('caseId');
+  if (caseIdParam) {
+    setTimeout(() => loadCaseById(caseIdParam), 100);
+  } else if (targetParam) {
+    setTimeout(() => {
+      triggerCase(decodeURIComponent(targetParam));
+    }, 100);
+  }
+})();
+</script>
+
+<!-- Screenshot Fullscreen Zoom Modal -->
+<div id="screenshot-zoom-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.88);z-index:999999;align-items:center;justify-content:center;cursor:zoom-out;" onclick="this.style.display='none'">
+  <div style="position:relative;max-width:92%;max-height:92%;">
+    <img id="screenshot-zoom-img" style="max-width:100%;max-height:90vh;border-radius:6px;border:2px solid var(--purple, #a855f7);box-shadow:0 16px 64px rgba(0,0,0,0.95);" />
+    <span style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.8);color:#fff;font-family:var(--font-mono);font-size:11px;padding:4px 8px;border-radius:4px;">Click anywhere to close</span>
+  </div>
+</div>
+
+</body>
+</html>

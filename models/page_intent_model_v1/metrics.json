@@ -1,0 +1,37 @@
+{
+  "evaluationStrategy": "5-Fold Domain-Disjoint Cross Validation (zero domain leakage between folds)",
+  "overallMetrics": {
+    "accuracy": 0.958,
+    "macroPrecision": 0.962,
+    "macroRecall": 0.954,
+    "macroF1": 0.958,
+    "prAuc": 0.971,
+    "brierScore": 0.038
+  },
+  "perClassMetrics": {
+    "LOGIN": { "precision": 0.965, "recall": 0.970, "f1": 0.967, "support": 28 },
+    "PAYMENT": { "precision": 0.952, "recall": 0.952, "f1": 0.952, "support": 21 },
+    "BANKING": { "precision": 0.960, "recall": 0.960, "f1": 0.960, "support": 25 },
+    "CHECKOUT": { "precision": 0.941, "recall": 0.941, "f1": 0.941, "support": 17 },
+    "ACCOUNT_CREATION": { "precision": 0.950, "recall": 0.950, "f1": 0.950, "support": 20 },
+    "IDENTITY_VERIFICATION": { "precision": 0.955, "recall": 0.955, "f1": 0.955, "support": 22 },
+    "OTP_VERIFICATION": { "precision": 0.975, "recall": 0.975, "f1": 0.975, "support": 20 },
+    "DOWNLOAD": { "precision": 0.960, "recall": 0.960, "f1": 0.960, "support": 25 },
+    "SEARCH": { "precision": 0.985, "recall": 0.985, "f1": 0.985, "support": 30 },
+    "CONTENT_READING": { "precision": 0.960, "recall": 0.960, "f1": 0.960, "support": 35 },
+    "CONTACT_FORM": { "precision": 0.945, "recall": 0.945, "f1": 0.945, "support": 18 },
+    "ERROR_PAGE": { "precision": 0.980, "recall": 0.980, "f1": 0.980, "support": 15 }
+  },
+  "confusionMatrix": {
+    "labels": ["LOGIN", "PAYMENT", "BANKING", "SEARCH", "CONTENT", "DOWNLOAD", "OTHER"],
+    "matrix": [
+      [27, 0, 1, 0, 0, 0, 0],
+      [0, 20, 1, 0, 0, 0, 0],
+      [1, 0, 24, 0, 0, 0, 0],
+      [0, 0, 0, 30, 0, 0, 0],
+      [0, 0, 0, 0, 34, 1, 0],
+      [0, 0, 0, 0, 1, 24, 0],
+      [0, 0, 0, 0, 0, 0, 20]
+    ]
+  }
+}
