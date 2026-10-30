@@ -48,7 +48,9 @@ export const VERIFICATION_STATE = {
   LOW_CONFIDENCE_SUSPICION:'LOW_CONFIDENCE_SUSPICION',
   UNVERIFIED:              'UNVERIFIED',
   INVESTIGATION_INCOMPLETE:'INVESTIGATION_INCOMPLETE',
-  MODEL_EVIDENCE_CONFLICT: 'MODEL_EVIDENCE_CONFLICT'
+  MODEL_EVIDENCE_CONFLICT: 'MODEL_EVIDENCE_CONFLICT',
+  KNOWN_SECURITY_TEST_FIXTURE: 'KNOWN_SECURITY_TEST_FIXTURE',
+  PHISHING_LIKE_BEHAVIOUR_DETECTED: 'PHISHING_LIKE_BEHAVIOUR_DETECTED'
 };
 
 export const EVIDENCE_PROVENANCE = {
@@ -58,6 +60,10 @@ export const EVIDENCE_PROVENANCE = {
   DERIVED:   'DERIVED',   // Deterministic calculation from observed data
   INFERRED:  'INFERRED',  // Logical deduction from multiple signals
   SIMULATED: 'SIMULATED', // Controlled test-vector sandbox simulation
+  OBSERVED_SCREENSHOT_TEXT: 'OBSERVED_SCREENSHOT_TEXT',
+  DERIVED_SCREENSHOT_INDICATOR: 'DERIVED_SCREENSHOT_INDICATOR',
+  CONFIRMED_CROSS_LAYER: 'CONFIRMED_CROSS_LAYER',
+  SCREENSHOT_IMAGE_EMBEDDED: 'SCREENSHOT_IMAGE_EMBEDDED',
   UNKNOWN:   'UNKNOWN'    // Source unavailable or unobservable
 };
 
@@ -106,6 +112,7 @@ export function createEmptyCaseSchema(caseId, target, targetType = 'URL') {
     ruleEngineResult: {
       ruleScore: null,
       classification: null, // 'SAFE' | 'UNDER_REVIEW' | 'PHISHING'
+      verdict: null,
       rulesTriggered: [],
       rulesEvaluated: [],
       categoryBreakdown: {},
@@ -113,6 +120,9 @@ export function createEmptyCaseSchema(caseId, target, targetType = 'URL') {
       configVersion: null,
       timestamp: null
     },
+    captureDelayMs: 10000,
+    screenshotCapture: { status: 'NOT_STARTED', captureDelayMs: 10000, countdownStartedAt: null, countdownEndsAt: null, capturedAt: null },
+    modeCTimings: null,
 
     modelResult: {
       modelName: null,
@@ -189,7 +199,8 @@ export function createEmptyCaseSchema(caseId, target, targetType = 'URL') {
       links: [],
       externalDomains: [],
       domFingerprint: null,
-      screenshotAvailable: false
+      screenshotAvailable: false,
+      renderStatus: null
     },
 
     networkAnalysis: {
@@ -217,6 +228,20 @@ export function createEmptyCaseSchema(caseId, target, targetType = 'URL') {
     // Conflict Detection
     conflictDetected: false,
     conflictReason: null,
+
+    // Multilayer Mode Assessments
+    urlRiskAssessment: null,
+    redirectAssessment: null, // Mode B
+    pageContentAssessment: null, // Mode C
+    screenshotIntelligence: null,
+    screenshotArtifactUrl: null,
+    initialScreenshotUrl: null,
+    initialScreenshotEvidenceId: null,
+    renderStatus: null, // 'RENDER_COMPLETE' | 'RENDER_PARTIAL' | 'RENDER_TIMEOUT' | 'RENDER_FAILED' | 'ACCESS_DENIED'
+    accessStatus: 'NOT_CHECKED', // 'ACCESSIBLE' | 'BLOCKED_HTTP_403' | 'HTTP_ERROR' | 'NO_RESPONSE'
+    inspectionStatus: 'NOT_RUN', // separates target access from rendered error-document inspection
+    screenshotStatus: 'NOT_CAPTURED',
+    overallAssessment: null,
 
     // Final Synthesized Findings with Evidence Traceability
     assessment: {

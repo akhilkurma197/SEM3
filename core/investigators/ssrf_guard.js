@@ -274,9 +274,9 @@ export class SSRFGuard {
     let resolvedIps = [];
     try {
       // Resolve both A (IPv4) and AAAA (IPv6)
-      const [v4Results, v6Results] = await Promise.allSettled([
-        dns.resolve4(hostname),
-        dns.resolve6(hostname)
+      const [v4Results, v6Results] = await Promise.race([
+        Promise.allSettled([dns.resolve4(hostname), dns.resolve6(hostname)]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('system DNS timed out')), 1500))
       ]);
 
       if (v4Results.status === 'fulfilled') resolvedIps.push(...v4Results.value);
@@ -285,25 +285,42 @@ export class SSRFGuard {
       if (resolvedIps.length === 0) {
         // Try generic lookup as fallback
         try {
-          const addrs = await dns.lookup(hostname, { all: true });
+          const addrs = await Promise.race([
+            dns.lookup(hostname, { all: true }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('system lookup timed out')), 1500))
+          ]);
           resolvedIps = addrs.map(a => a.address);
         } catch {
-          // DNS completely failed — block to be safe
-          return {
-            allowed: false,
-            blockedReason: `DNS resolution failed for hostname "${hostname}" — blocking as precaution`,
-            resolvedIps: [],
-            canonicalUrl
-          };
+          throw new Error('System DNS lookup failed or timed out');
         }
       }
     } catch {
-      return {
-        allowed: false,
-        blockedReason: `DNS resolution error for hostname "${hostname}"`,
-        resolvedIps: [],
-        canonicalUrl
+      // A slow operating-system resolver must not stall live inspection. Use
+      // DNS-over-HTTPS as a bounded fallback, then validate all returned IPs.
+      const queryType = async (type) => {
+        const queryUrl = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${type}`;
+        const response = await fetch(queryUrl, {
+          headers: { Accept: 'application/dns-json' },
+          signal: AbortSignal.timeout(2500)
+        });
+        if (!response.ok) return [];
+        const payload = await response.json();
+        return (payload.Answer || [])
+          .filter(record => (type === 'A' && record.type === 1) || (type === 'AAAA' && record.type === 28))
+          .map(record => record.data);
       };
+      const dohAnswers = await Promise.allSettled([queryType('A'), queryType('AAAA')]);
+      for (const answer of dohAnswers) {
+        if (answer.status === 'fulfilled') resolvedIps.push(...answer.value);
+      }
+      if (resolvedIps.length === 0) {
+        return {
+          allowed: false,
+          blockedReason: `DNS resolution error for hostname "${hostname}"`,
+          resolvedIps: [],
+          canonicalUrl
+        };
+      }
     }
 
     // 6. Check every resolved IP

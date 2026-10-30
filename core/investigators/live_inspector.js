@@ -4,7 +4,7 @@
  * 
  * Architecture:
  * 1. Delegates execution to LiveJobController (Control Plane -> Worker boundary).
- * 2. Spawns isolated worker subprocess with clean environment & no app secrets.
+ * 2. Delegates to a disposable Docker worker with no app secrets.
  * 3. Enforces Controlled Egress Proxy with connection-time DNS pinning.
  * 4. Captures real DOM extraction, redirect hops, network events, and blocked requests.
  */
@@ -15,7 +15,9 @@ import { globalJobController, JOB_STATUS } from './live_job_controller.js';
 import { PageStructureExtractor } from './page_extractor.js';
 
 const BUDGETS = {
-  timeoutMs: 8000,
+  // Leave time for navigation, bounded readiness checks, and screenshot capture.
+  timeoutMs: 160000,
+  keepAliveMs: 120000,
   maxRedirects: 5,
   maxResponseBytes: 500000
 };
@@ -50,7 +52,7 @@ export class LiveInspector {
         status: 'CANCELLED',
         mode: 'ISOLATED_LIVE',
         isolationReport: {
-          sandboxType: 'ISOLATED_PROCESS_WORKER',
+          sandboxType: 'RUNTIME_NOT_VERIFIED',
           workerPid: process.pid,
           inspectionId
         },
@@ -79,7 +81,7 @@ export class LiveInspector {
         status: 'BLOCKED',
         mode: 'ISOLATED_LIVE',
         isolationReport: {
-          sandboxType: 'ISOLATED_PROCESS_WORKER',
+          sandboxType: 'RUNTIME_NOT_VERIFIED',
           workerPid: process.pid,
           inspectionId,
           ssrfProtection: 'PRE_CONNECTION_DNS_VALIDATION'
@@ -116,16 +118,21 @@ export class LiveInspector {
 
       jobRecord = await globalJobController.submitJob(url, caseId, {
         timeoutMs,
+        keepAliveMs: options.keepAliveMs ?? BUDGETS.keepAliveMs,
+        abortSignal,
         maxRedirects: BUDGETS.maxRedirects,
         maxBytes: BUDGETS.maxResponseBytes,
         ...options
-      });
+      }, ssrfResult);
+      if (abortSignal?.aborted && jobRecord.jobId) {
+        globalJobController.cancelJob(jobRecord.jobId);
+      }
     } catch (err) {
       return {
         status: 'FAILED',
         mode: 'ISOLATED_LIVE',
         isolationReport: {
-          sandboxType: 'ISOLATED_PROCESS_WORKER',
+          sandboxType: 'RUNTIME_NOT_VERIFIED',
           workerPid: process.pid,
           inspectionId
         },
@@ -149,9 +156,10 @@ export class LiveInspector {
 
     const workerResult = jobRecord.result || {};
     const finalStatus = jobRecord.status === JOB_STATUS.COMPLETED ? 'SUCCESS'
+      : (jobRecord.status === JOB_STATUS.PARTIAL ? 'PARTIAL'
       : (jobRecord.status === JOB_STATUS.CANCELLED ? 'CANCELLED'
       : (jobRecord.status === JOB_STATUS.TIMED_OUT ? 'TIMEOUT'
-      : (jobRecord.status === JOB_STATUS.BLOCKED ? 'BLOCKED' : 'FAILED')));
+      : (jobRecord.status === JOB_STATUS.BLOCKED ? 'BLOCKED' : 'FAILED'))));
 
     if (workerResult.warnings) warnings.push(...workerResult.warnings);
     if (workerResult.errors) errors.push(...workerResult.errors);
@@ -165,7 +173,7 @@ export class LiveInspector {
       status: finalStatus,
       mode: 'ISOLATED_LIVE',
       isolationReport: workerResult.isolationReport || {
-        sandboxType: 'ISOLATED_PROCESS_WORKER',
+        sandboxType: 'RUNTIME_NOT_VERIFIED',
         playwrightAvailable: false,
         credentialsIsolated: true,
         cookiesIsolated: true,
@@ -179,9 +187,22 @@ export class LiveInspector {
       finalUrl: workerResult.finalUrl || url,
       redirectChain: workerResult.redirectChain || [],
       httpStatus: workerResult.httpStatus || null,
-      httpHeaders: workerResult.headers || {},
+      httpHeaders: workerResult.responseHeaders || workerResult.headers || {},
+      requestHeaders: workerResult.requestHeaders || {},
+      responseBodyExcerpt: workerResult.responseBodyExcerpt || '',
+      responseDiagnostics: workerResult.responseDiagnostics || null,
+      browserDiagnostics: workerResult.browserDiagnostics || null,
+      correlationId: workerResult.correlationId || jobRecord.jobId,
+      egressObservations: workerResult.egressObservations || null,
       contentType: workerResult.contentType || '',
       responseSizeBytes: workerResult.pageExtraction?.htmlBytes || 0,
+      renderStatus: workerResult.renderStatus || workerResult.pageExtraction?.renderStatus || 'RENDER_PARTIAL',
+      readinessDiagnostics: workerResult.readinessDiagnostics || null,
+      screenshotCapture: workerResult.screenshotCapture || null,
+      screenshotCaptured: workerResult.screenshotCaptured === true,
+      modeCTimings: workerResult.modeCTimings || {},
+      runtimeSessionActive: workerResult.runtimeSessionActive === true,
+      runtimeSessionUntil: workerResult.runtimeSessionUntil || null,
       pageExtraction: workerResult.pageExtraction || null,
       networkEvents: workerResult.networkEvents || [],
       blockedRequests: workerResult.blockedRequests || [],

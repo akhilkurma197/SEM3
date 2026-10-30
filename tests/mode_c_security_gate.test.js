@@ -30,10 +30,9 @@ const rootDir = path.resolve(__dirname, '..');
 describe('Mode C Security Gate — Container Prerequisite & Insecure Fallback Prohibition', () => {
 
   it('strictly refuses live inspection when container runtime is unavailable (zero host subprocess fallback)', async () => {
-    // Instantiate controller where dockerAvailable is false (or host daemon offline)
+    // Inject a refused runtime check without depending on the workstation's Docker state.
     const controller = new LiveJobController();
-    // Explicitly enforce dockerAvailable = false to simulate offline Docker daemon
-    controller.dockerAvailable = false;
+    controller._ensureDockerRuntime = () => { throw new Error('Docker daemon is not running or this process cannot access it.'); };
 
     const caseId = `case-security-gate-${Date.now()}`;
     const job = await controller.submitJob('http://hdfc-netbanking-verify.xyz/', caseId, {
@@ -42,8 +41,8 @@ describe('Mode C Security Gate — Container Prerequisite & Insecure Fallback Pr
 
     // 1. Must refuse execution
     assert.strictEqual(job.status, JOB_STATUS.FAILED);
-    assert.match(job.error, /Live inspection refused: Isolated container runtime \(Docker daemon\) is required/i);
-    assert.match(job.error, /prohibited by security policy/i);
+    assert.match(job.error, /Mode C container runtime unavailable/i);
+    assert.match(job.error, /Docker daemon is not running/i);
 
     // 2. Report must truthfully reflect refused runtime
     assert.ok(job.result, 'Must return structured result explaining refusal');
@@ -79,6 +78,38 @@ describe('Mode C Security Gate — Container Prerequisite & Insecure Fallback Pr
 
     assert.ok(dockerfileCode.includes('USER pwuser'), 'Dockerfile must specify USER pwuser (non-root)');
     assert.ok(dockerfileCode.includes('ENTRYPOINT'), 'Dockerfile must specify container ENTRYPOINT');
+    assert.match(dockerfileCode, /playwright:v1\.64\.1-noble/);
+    assert.match(dockerfileCode, /npm ci/);
+  });
+
+  it('enables Chromium sandbox with only the namespace seccomp additions and SYS_CHROOT capability', () => {
+    const workerCode = fs.readFileSync(path.join(rootDir, 'worker', 'browser_worker.js'), 'utf8');
+    const controllerCode = fs.readFileSync(path.join(rootDir, 'core', 'investigators', 'live_job_controller.js'), 'utf8');
+    const profile = JSON.parse(fs.readFileSync(path.join(rootDir, 'worker', 'chromium-seccomp.json'), 'utf8'));
+    assert.match(workerCode, /chromiumSandbox:\s*true/);
+    assert.match(controllerCode, /--cap-drop=ALL/);
+    assert.match(controllerCode, /--cap-add=SYS_CHROOT/);
+    assert.doesNotMatch(controllerCode, /--cap-add=SYS_ADMIN|host-gateway/);
+    assert.equal(profile.defaultAction, 'SCMP_ACT_ERRNO');
+    assert.ok(profile.syscalls.some(rule => rule.action === 'SCMP_ACT_ALLOW' && ['clone', 'setns', 'unshare'].every(name => rule.names.includes(name))));
+  });
+
+  it('isolates each browser job to its own authenticated egress proxy and cleans up timed-out workers', () => {
+    const controllerCode = fs.readFileSync(path.join(rootDir, 'core', 'investigators', 'live_job_controller.js'), 'utf8');
+    assert.match(controllerCode, /const proxyAlias = `trustlayer-egress-\$\{job\.jobId\}`/);
+    assert.match(controllerCode, /`--network-alias=\$\{proxyAlias\}`/);
+    assert.match(controllerCode, /`--proxy=http:\/\/\$\{proxyAlias\}:3128`/);
+    assert.match(controllerCode, /const browserContainerName = `trustlayer-browser-\$\{job\.jobId\}`/);
+    assert.match(controllerCode, /docker', \['rm', '-f', handle\.browserContainerName\]/);
+    assert.match(controllerCode, /job\.options\?\.onInitialScreenshot/);
+    assert.match(controllerCode, /setInterval\(publishInitialScreenshot, 100\)/);
+    assert.match(fs.readFileSync(path.join(rootDir, 'core', 'investigation_engine.js'), 'utf8'), /onInitialScreenshot: \(/);
+  });
+
+  it('does not retain an HTTP-only Mode C browser fallback', () => {
+    const workerCode = fs.readFileSync(path.join(rootDir, 'worker', 'browser_worker.js'), 'utf8');
+    assert.match(workerCode, /Playwright is required for Mode C/);
+    assert.doesNotMatch(workerCode, /runHttpWorkerInspection|fetchOneHop/);
   });
 
   it('verifies that Controlled Egress Proxy connects directly to pinned IP to eliminate DNS rebinding', async () => {

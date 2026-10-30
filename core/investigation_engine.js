@@ -24,6 +24,7 @@ export {
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,19 +34,64 @@ import { URLParser } from './ml/url_parser.js';
 import { URLFeatureExtractor } from './ml/url_features.js';
 import { URLClassifier } from './ml/url_classifier.js';
 import { DNSReconInvestigator } from './investigators/dns_recon.js';
-import { HTTPReconInvestigator } from './investigators/http_recon.js';
 import { PageStructureExtractor } from './investigators/page_extractor.js';
 import { PageIntentEngine, PAGE_INTENT } from './ml/page_intent_engine.js';
 import { QREngine } from './investigators/qr_engine.js';
 import { URLRuleEngine } from './rules/url_rule_engine.js';
+import { OverallRiskAggregator } from './rules/risk_aggregator.js';
 import { LiveInspector } from './investigators/live_inspector.js';
 import { IntelligenceSummaryBuilder } from './investigators/intelligence_summary.js';
+import { ScreenshotIntelligenceExtractor } from './investigators/screenshot_intelligence.js';
+import { RedirectTracer } from './investigators/redirect_tracer.js';
 
 export const INSPECTION_MODE = {
   URL_ONLY: 'URL_ONLY',
+  MODE_B: 'MODE_B',
   SNAPSHOT: 'SNAPSHOT',
   ISOLATED_LIVE: 'ISOLATED_LIVE'
 };
+
+async function waitForRenderReadiness(page, maxWaitMs = 5000) {
+  const deadline = Date.now() + maxWaitMs;
+  const remaining = () => Math.max(1, deadline - Date.now());
+  const documentComplete = await page.waitForFunction(() => document.readyState === 'complete',
+    { timeout: Math.min(1500, remaining()) }).then(() => true).catch(() => false);
+  const imagesComplete = await page.waitForFunction(
+    () => Array.from(document.images || []).every(image => image.complete),
+    { timeout: Math.min(1000, remaining()) }
+  ).then(() => true).catch(() => false);
+  await page.evaluate(() => document.fonts?.ready
+    ? Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 700))])
+    : true).catch(() => {});
+  let previous = '';
+  let stableRounds = 0;
+  while (Date.now() < deadline && stableRounds < 2) {
+    const current = await page.evaluate(() => document.documentElement?.innerHTML || '').catch(() => '');
+    stableRounds = current === previous ? stableRounds + 1 : 0;
+    previous = current;
+    if (stableRounds < 2) await page.waitForTimeout(250);
+  }
+  return documentComplete && imagesComplete && stableRounds >= 2 ? 'RENDER_COMPLETE' : 'RENDER_PARTIAL';
+}
+
+async function attachScreenshotIntelligence(icase, extraction, screenshotPath, url, hostname) {
+  const ocrStartedAt = Date.now();
+  const result = await ScreenshotIntelligenceExtractor.analyze({
+    screenshotPath, caseId: icase.id, url, targetHostname: hostname, domExtraction: extraction
+  });
+  icase.schema.modeCTimings = { ...(icase.schema.modeCTimings || {}), ocr_analysis_ms: Date.now() - ocrStartedAt };
+  icase.schema.screenshotIntelligence = result;
+  extraction.screenshotIntelligence = result;
+  for (const finding of result.findings || []) {
+    const item = icase.addEvidence(
+      finding.source === 'SCREENSHOT_IMAGE_EMBEDDED' ? EVIDENCE_PROVENANCE.SCREENSHOT_IMAGE_EMBEDDED : EVIDENCE_PROVENANCE.CONFIRMED_CROSS_LAYER,
+      'screenshot', `Screenshot Clue: ${finding.label}`,
+      `${finding.interpretation} Snippet: "${finding.textSnippet}" (Confidence: ${finding.confidence}%)`, finding
+    );
+    finding.evidenceId = item.id;
+  }
+  return result;
+}
 
 // ── Controlled Demo Sandbox Vectors (Explicitly labeled SIMULATED) ──
 const CONTROLLED_DEMO_CASES = {
@@ -69,6 +115,13 @@ const CONTROLLED_DEMO_CASES = {
     htmlMock: "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>PayPal — Account Security Update Required</title>\n  <style>\n    body { margin:0; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; background: #f5f7fa; color: #2c2e2f; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }\n    .logo { color: #003087; font-size: 32px; font-weight: 800; font-style: italic; margin-bottom: 24px; }\n    .card { background: #fff; border: 1px solid #eaeced; border-radius: 12px; width: 440px; padding: 40px; box-sizing: border-box; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }\n    .title { font-size: 20px; font-weight: 600; color: #001435; margin-bottom: 8px; text-align: center; }\n    .subtitle { font-size: 13px; color: #515354; margin-bottom: 24px; line-height: 1.5; text-align: center; }\n    .group { margin-bottom: 16px; }\n    .label { display: block; font-size: 12px; font-weight: 600; color: #2c2e2f; margin-bottom: 6px; }\n    .input { width: 100%; padding: 12px; border: 1px solid #9da3a6; border-radius: 6px; font-size: 14px; box-sizing: border-box; }\n    .btn { width: 100%; padding: 14px; background: #0070ba; color: #fff; border: none; border-radius: 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 12px; }\n    .footer { font-size: 11px; color: #6c7378; text-align: center; margin-top: 32px; }\n  </style>\n</head>\n<body>\n  <div class=\"logo\">PayPal</div>\n  <div class=\"card\">\n    <div class=\"title\">Confirm Your Identity</div>\n    <div class=\"subtitle\">We detected unusual activity on your account. Please confirm your credentials to restore account services.</div>\n    <form action=\"https://paypal-security-update.top/submit\" method=\"POST\">\n      <div class=\"group\">\n        <label class=\"label\">Email Address</label>\n        <input class=\"input\" name=\"email\" type=\"email\" placeholder=\"name@example.com\" required>\n      </div>\n      <div class=\"group\">\n        <label class=\"label\">Password</label>\n        <input class=\"input\" name=\"password\" type=\"password\" placeholder=\"Enter password\" required>\n      </div>\n      <div class=\"group\">\n        <label class=\"label\">Debit / Credit Card Number</label>\n        <input class=\"input\" name=\"card_number\" type=\"text\" placeholder=\"16-digit card number\" required>\n      </div>\n      <div class=\"group\">\n        <label class=\"label\">CVV / Security Code</label>\n        <input class=\"input\" name=\"card_cvv\" type=\"password\" placeholder=\"3 digits on back\" required>\n      </div>\n      <button class=\"btn\" type=\"submit\">Verify Account Now</button>\n    </form>\n  </div>\n  <div class=\"footer\">Security Center • Contact Us • Privacy Policy</div>\n  <script src=\"https://static.paypal-security-update.top/js/app.js\"></script>\n</body>\n</html>",
     claimedEntity: 'PayPal',
     actualEntity: 'paypal-security-update.top'
+  },
+  'testsafebrowsing.appspot.com': {
+    isDemo: true,
+    pageTitle: 'Phishing Page Example',
+    htmlMock: '<!doctype html><html><head><title>Phishing Page Example</title></head><body><h1>Phishing Page Example</h1><p>This is a test page for Google Safe Browsing.</p><form><label>Username <input name="username"></label><label>Password <input name="password" type="password"></label></form><h2>Social engineering content example</h2><p>A Media Player 12.3 update is REQUIRED. Please install FLV HD and continue.</p></body></html>',
+    claimedEntity: 'Security Demonstration Fixture',
+    actualEntity: 'testsafebrowsing.appspot.com'
   }
 };
 
@@ -414,6 +467,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         icase.schema.ruleEngineResult = {
           ruleScore: ruleEval.ruleScore,
           classification: ruleEval.classification,
+          verdict: ruleEval.verdict,
           rulesEvaluated: ruleEval.rulesEvaluated,
           rulesTriggered: ruleEval.rulesTriggered,
           categoryBreakdown: ruleEval.categoryBreakdown,
@@ -461,29 +515,36 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
 
       // ── Step 4: Host & DNS Intelligence ──
       icase.setStage(CASE_STATE.HOST_ANALYSIS);
-      const dnsRes = await DNSReconInvestigator.resolve(parsed.hostname);
-      icase.schema.domainAnalysis.ipAddresses = dnsRes.ipAddresses;
-      icase.schema.domainAnalysis.dnsRecords = dnsRes.dnsRecords;
-      icase.schema.domainAnalysis.nameservers = dnsRes.nameservers;
-      icase.schema.domainAnalysis.asn = dnsRes.asn;
-      icase.schema.domainAnalysis.tlsMetadata = dnsRes.tlsMetadata;
-      icase.schema.domainAnalysis.source = dnsRes.source;
-      icase.schema.domainAnalysis.timestamp = dnsRes.timestamp;
-
-      if (dnsRes.status === 'SUCCESS') {
-        icase.schema.coverage.host = STAGE_STATUS.COMPLETED;
-        icase.log(`HOST RESOLVED: ${dnsRes.ipAddresses.join(', ')} (${dnsRes.source})`);
-        icase.addEvidence(EVIDENCE_PROVENANCE.EXTERNAL, 'host', 'Host DNS & IP Resolution Observed',
-          `Resolved ${dnsRes.ipAddresses.length} IP address(es) via ${dnsRes.source}: ${dnsRes.ipAddresses.join(', ')}`,
-          dnsRes);
-        for (const ip of dnsRes.ipAddresses) {
-          icase.addGraphNode(`ip_${ip}`, ip, 'ip', { ip });
-          icase.addGraphEdge('target', `ip_${ip}`, 'resolves-to', 'dns');
+      const dnsPromise = DNSReconInvestigator.resolve(parsed.hostname);
+      let dnsRes = null;
+      const recordHostResult = (result) => {
+        icase.schema.domainAnalysis.ipAddresses = result.ipAddresses;
+        icase.schema.domainAnalysis.dnsRecords = result.dnsRecords;
+        icase.schema.domainAnalysis.nameservers = result.nameservers;
+        icase.schema.domainAnalysis.asn = result.asn;
+        icase.schema.domainAnalysis.tlsMetadata = result.tlsMetadata;
+        icase.schema.domainAnalysis.source = result.source;
+        icase.schema.domainAnalysis.timestamp = result.timestamp;
+        if (result.status === 'SUCCESS') {
+          icase.schema.coverage.host = STAGE_STATUS.COMPLETED;
+          icase.log(`HOST RESOLVED: ${result.ipAddresses.join(', ')} (${result.source})`);
+          icase.addEvidence(EVIDENCE_PROVENANCE.EXTERNAL, 'host', 'Host DNS & IP Resolution Observed',
+            `Resolved ${result.ipAddresses.length} IP address(es) via ${result.source}: ${result.ipAddresses.join(', ')}`,
+            result);
+          for (const ip of result.ipAddresses) {
+            icase.addGraphNode(`ip_${ip}`, ip, 'ip', { ip });
+            icase.addGraphEdge('target', `ip_${ip}`, 'resolves-to', 'dns');
+          }
+        } else {
+          icase.schema.coverage.host = STAGE_STATUS.FAILED;
+          icase.log(`HOST DNS RESOLUTION FAILED: ${result.error}`, 'warn');
+          icase.addEvidence(EVIDENCE_PROVENANCE.EXTERNAL, 'host', 'Host DNS Resolution Failed', result.error);
         }
-      } else {
-        icase.schema.coverage.host = STAGE_STATUS.FAILED;
-        icase.log(`HOST DNS RESOLUTION FAILED: ${dnsRes.error}`, 'warn');
-        icase.addEvidence(EVIDENCE_PROVENANCE.EXTERNAL, 'host', 'Host DNS Resolution Failed', dnsRes.error);
+      };
+      // Run DNS beside Mode C so slow host enrichment does not block the render.
+      if (icase.schema.inspectionMode !== 'ISOLATED_LIVE') {
+        dnsRes = await dnsPromise;
+        recordHostResult(dnsRes);
       }
 
       // ── Step 5: Real HTTP Reconnaissance ──
@@ -517,6 +578,13 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
 
             const screenshotsDir = path.join(rootDir, 'data', 'screenshots');
             fs.mkdirSync(screenshotsDir, { recursive: true });
+            const initialPath = path.join(screenshotsDir, `${icase.id}-initial.png`);
+            try {
+              await page.screenshot({ path: initialPath, type: 'png' });
+              icase.schema.initialScreenshotUrl = `/api/cases/${icase.id}/screenshot?type=initial`;
+            } catch {}
+            icase.schema.renderStatus = await waitForRenderReadiness(page, 4000);
+
             const shotPath = path.join(screenshotsDir, `${icase.id}.png`);
             const shotBuf = await page.screenshot({ type: 'png' });
             fs.writeFileSync(shotPath, shotBuf);
@@ -528,6 +596,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
             extraction.screenshotBytes = shotBuf.length;
 
             liveExtracted = extraction;
+            await attachScreenshotIntelligence(icase, extraction, shotPath, parsed.normalizedUrl, parsed.hostname);
             httpProbe = {
               status: 'SUCCESS',
               statusCode: 200,
@@ -562,12 +631,12 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
               pageExtraction: extraction,
               blockedRequests: blockedReqs,
               isolationReport: {
-                sandboxType: 'CONTAINER_PLAYWRIGHT_CHROMIUM',
+                sandboxType: 'CONTROLLED_FIXTURE_RENDER',
                 playwrightAvailable: true,
-                chromiumSandboxEnabled: true,
+                chromiumSandboxEnabled: false,
                 credentialsIsolated: true,
-                proxyEnforced: true,
-                runtimeMode: 'DEMO_ISOLATED_PLAYWRIGHT'
+                proxyEnforced: false,
+                runtimeMode: 'SIMULATED_CONTROLLED_FIXTURE'
               }
             };
 
@@ -601,8 +670,57 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           }
         } else {
           // Real live target: LiveInspector via container supervisor
-          const liveRes = await LiveInspector.inspect(parsed.normalizedUrl, { caseId: icase.id }, icase._abortSignal);
+          const liveRes = await LiveInspector.inspect(parsed.normalizedUrl, {
+            caseId: icase.id,
+            captureDelayMs: icase.schema.captureDelayMs,
+            onCaptureStatus: (captureStatus) => {
+              icase.schema.screenshotCapture = captureStatus;
+              icase.emit('stage', { stage: 'SCREENSHOT_CAPTURE_STATUS', captureStatus });
+            },
+            onTimings: (timings) => { icase.schema.modeCTimings = timings; },
+            onInitialScreenshot: ({ artifactUrl, screenshotBytes, sha256, renderStatus, capturedAt }) => {
+              icase.schema.initialScreenshotUrl = artifactUrl;
+              icase.schema.pageAnalysis.screenshotAvailable = true;
+              icase.schema.pageAnalysis.status = STAGE_STATUS.RUNNING;
+              icase.schema.pageAnalysis.renderStatus = renderStatus || 'RENDER_PARTIAL';
+              icase.schema.renderStatus = renderStatus || 'RENDER_PARTIAL';
+              const initialEvidence = icase.addEvidence(
+                EVIDENCE_PROVENANCE.OBSERVED,
+                'screenshot',
+                'Mode C Initial Viewport Screenshot Captured',
+                `Captured a ${screenshotBytes}-byte viewport from ${parsed.normalizedUrl} after the configured post-render countdown. Render status: ${renderStatus || 'RENDER_PARTIAL'}.`,
+                { artifactUrl, sha256, screenshotBytes, checkpoint: 'INITIAL', renderStatus: renderStatus || 'RENDER_PARTIAL', capturedAt }
+              );
+              icase.schema.initialScreenshotEvidenceId = initialEvidence.id;
+              icase.log('INITIAL SCREENSHOT READY: displaying partial viewport while final render continues.');
+              icase.emit('stage', { stage: 'INITIAL_SCREENSHOT_CAPTURED' });
+            }
+          }, icase._abortSignal);
           icase.schema.liveInspection = liveRes;
+          const liveHttpCode = Number(liveRes.httpStatus) || null;
+          const hasLiveHttpResponse = liveHttpCode !== null;
+          const isLiveAccessDenied = liveHttpCode === 403;
+          icase.schema.accessStatus = isLiveAccessDenied ? 'BLOCKED_HTTP_403'
+            : (hasLiveHttpResponse && liveHttpCode >= 400 ? 'HTTP_ERROR'
+              : (hasLiveHttpResponse ? 'ACCESSIBLE' : 'NO_RESPONSE'));
+          icase.schema.inspectionStatus = isLiveAccessDenied ? 'CONTENT_UNAVAILABLE'
+            : (hasLiveHttpResponse && liveHttpCode >= 400 ? 'HTTP_ERROR_DOCUMENT'
+              : (liveRes.pageExtraction ? 'CONTENT_INSPECTED' : 'NOT_RUN'));
+          icase.schema.screenshotStatus = liveRes.screenshotCaptured ? 'CAPTURED' : 'NOT_CAPTURED';
+          liveRes.accessStatus = icase.schema.accessStatus;
+          liveRes.inspectionStatus = icase.schema.inspectionStatus;
+          liveRes.screenshotStatus = icase.schema.screenshotStatus;
+          icase.schema.modeCTimings = { ...(liveRes.modeCTimings || {}), ...(icase.schema.modeCTimings || {}),
+            total_investigation_ms: Date.now() - icase.schema.createdAt };
+          icase.log(`MODE C TIMINGS (ms): ${JSON.stringify(icase.schema.modeCTimings)}`);
+          if (liveRes.screenshotCaptured) {
+            // Keep the worker's capture-clock timestamps. Replacing capturedAt
+            // here hides timing errors and can make the UI countdown disagree
+            // with the actual screenshot checkpoint.
+            icase.schema.screenshotCapture = { ...(icase.schema.screenshotCapture || {}),
+              ...(liveRes.screenshotCapture || {}), status: 'READY',
+              capturedAt: liveRes.screenshotCapture?.capturedAt || icase.schema.screenshotCapture?.capturedAt || Date.now() };
+          }
 
           if (liveRes.status === 'BLOCKED') {
             httpProbe = {
@@ -620,134 +738,112 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
               error: liveRes.errors[0] || 'SSRF / Egress Policy Blocked'
             };
             icase.addEvidence(EVIDENCE_PROVENANCE.OBSERVED, 'http', 'Live Inspection Blocked by Policy', httpProbe.error, liveRes);
-          } else if (liveRes.status === 'SUCCESS' && liveRes.pageExtraction) {
+          } else if (['SUCCESS', 'PARTIAL'].includes(liveRes.status) && liveRes.pageExtraction) {
             liveExtracted = liveRes.pageExtraction;
+            icase.schema.renderStatus = liveRes.renderStatus || 'RENDER_PARTIAL';
+            if (liveRes.pageExtraction.screenshotAvailable) {
+              const screenshotPath = path.join(rootDir, 'data', 'screenshots', `${icase.id}.png`);
+              try {
+                const screenshotResult = await attachScreenshotIntelligence(
+                  icase, liveRes.pageExtraction, screenshotPath, parsed.normalizedUrl, parsed.hostname
+                );
+                icase.schema.screenshotArtifactUrl = `/api/cases/${icase.id}/screenshot`;
+                if (liveRes.pageExtraction.initialScreenshotAvailable) {
+                  icase.schema.initialScreenshotUrl = `/api/cases/${icase.id}/screenshot?type=initial`;
+                }
+                const screenshotEvidence = icase.addEvidence(
+                  EVIDENCE_PROVENANCE.OBSERVED,
+                  'screenshot',
+                  'Mode C Viewport Screenshot Captured',
+                  `Captured a ${liveRes.pageExtraction.screenshotBytes || fs.statSync(screenshotPath).size}-byte browser viewport from ${liveRes.finalUrl || parsed.normalizedUrl}; render status: ${liveRes.renderStatus || 'RENDER_PARTIAL'}.`,
+                  {
+                    artifactUrl: icase.schema.screenshotArtifactUrl,
+                    initialArtifactUrl: icase.schema.initialScreenshotUrl,
+                    sha256: createHash('sha256').update(fs.readFileSync(screenshotPath)).digest('hex'),
+                    renderStatus: liveRes.renderStatus || 'RENDER_PARTIAL',
+                    finalUrl: liveRes.finalUrl || parsed.normalizedUrl,
+                    screenshotMetadata: liveRes.pageExtraction.screenshotMetadata || null,
+                    readinessDiagnostics: liveRes.readinessDiagnostics || null
+                  }
+                );
+                liveRes.pageExtraction.screenshotEvidenceId = screenshotEvidence.id;
+                icase.schema.screenshotArtifactEvidenceId = screenshotEvidence.id;
+                if (screenshotResult.status !== 'SUCCESS') {
+                  icase.log('Screenshot intelligence unavailable: ' + screenshotResult.error, 'warn');
+                }
+              } catch (screenshotError) {
+                icase.log('Screenshot intelligence error: ' + screenshotError.message, 'warn');
+              }
+            }
+            const httpCode = liveRes.httpStatus || null;
+            const isAccessRestricted = httpCode === 403;
+            const proxyPolicyResponse = Boolean(liveRes.httpHeaders?.['x-trustlayer-egress-policy']);
             httpProbe = {
-              status: 'SUCCESS',
-              statusCode: liveRes.httpStatus || 200,
-              statusText: 'OK',
+              // A 403 is still an observed HTTP response, so preserve its page
+              // body/screenshot while labeling the restriction explicitly.
+              status: httpCode ? 'SUCCESS' : liveRes.status,
+              statusCode: httpCode,
+              statusText: isAccessRestricted ? 'HTTP_403_ACCESS_RESTRICTION' : (httpCode ? `HTTP_${httpCode}` : liveRes.status),
               initialUrl: parsed.normalizedUrl,
               finalUrl: liveRes.finalUrl || parsed.normalizedUrl,
               redirectCount: liveRes.redirectChain.length,
               redirectChain: liveRes.redirectChain,
               latencyMs: liveRes.timingMs,
               headers: liveRes.httpHeaders || {},
+              requestHeaders: liveRes.requestHeaders || {},
               contentType: liveRes.contentType || 'text/html',
-              bodySnippet: liveRes.pageExtraction?.title ? ('<html><title>' + liveRes.pageExtraction.title + '</title></html>') : '',
-              error: null
+              bodySnippet: liveRes.responseBodyExcerpt || (liveRes.pageExtraction?.title ? ('<html><title>' + liveRes.pageExtraction.title + '</title></html>') : ''),
+              error: isAccessRestricted ? 'The HTTP endpoint returned 403 Forbidden; this is an access restriction and is not by itself evidence of phishing.' : null,
+              correlationId: liveRes.correlationId,
+              responseOrigin: proxyPolicyResponse ? 'EGRESS_PROXY_POLICY' : (httpCode ? 'TARGET_TLS_ENDPOINT' : 'UNKNOWN'),
+              responseDiagnostics: liveRes.responseDiagnostics || null,
+              accessRestriction: isAccessRestricted ? {
+                status: httpCode,
+                origin: proxyPolicyResponse ? 'EGRESS_PROXY_POLICY' : 'TARGET_TLS_ENDPOINT',
+                finalUrl: liveRes.finalUrl || parsed.normalizedUrl,
+                headers: liveRes.httpHeaders || {},
+                bodyExcerpt: liveRes.responseBodyExcerpt || '',
+                diagnostics: liveRes.responseDiagnostics || null
+              } : null,
+              egressObservations: liveRes.egressObservations || null
             };
           } else {
-            // Container worker was offline or failed -> run Observation Mode Playwright Chromium directly
-            icase.log('MODE C: Running Observation Mode Playwright Chromium worker for ' + parsed.normalizedUrl);
-            try {
-              const { chromium } = await import('playwright');
-              const browser = await chromium.launch({ headless: true });
-              const context = await browser.newContext({
-                viewport: { width: 1280, height: 800 },
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 TrustLayer/2.0-Inspector',
-                ignoreHTTPSErrors: true
-              });
-              const page = await context.newPage();
-
-              const blockedReqs = [];
-              await page.route('**/*', async (route) => {
-                const method = route.request().method();
-                if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-                  blockedReqs.push({
-                    time: new Date().toLocaleTimeString(),
-                    method: method,
-                    url: route.request().url(),
-                    reason: 'Disallowed mutating method ' + method + ' to ' + route.request().url() + ' — Observation mode strictly prohibits data transmission.'
-                  });
-                  return route.abort('blockedbyclient');
-                }
-                return route.continue();
-              });
-
-              let navCode = 200;
-              try {
-                const resp = await page.goto(parsed.normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 8000 });
-                if (resp) navCode = resp.status();
-              } catch (navErr) {
-                icase.log('Playwright navigation notice: ' + navErr.message, 'warn');
-              }
-
-              await page.waitForTimeout(600);
-
-              const screenshotsDir = path.join(rootDir, 'data', 'screenshots');
-              fs.mkdirSync(screenshotsDir, { recursive: true });
-              const shotPath = path.join(screenshotsDir, `${icase.id}.png`);
-              const shotBuf = await page.screenshot({ type: 'png' });
-              fs.writeFileSync(shotPath, shotBuf);
-
-              const pageContent = await page.content();
-              await browser.close();
-
-              const extraction = PageStructureExtractor.extract(pageContent, parsed.hostname);
-              extraction.screenshotAvailable = true;
-              extraction.screenshotUrl = `/api/cases/${icase.id}/screenshot`;
-              extraction.screenshotBytes = shotBuf.length;
-
-              liveExtracted = extraction;
-              httpProbe = {
-                status: 'SUCCESS',
-                statusCode: navCode || 200,
-                statusText: 'OK',
-                initialUrl: parsed.normalizedUrl,
-                finalUrl: parsed.normalizedUrl,
-                redirectCount: 0,
-                redirectChain: [{ url: parsed.normalizedUrl, status: navCode || 200, ms: 250, final: true }],
-                latencyMs: 250,
-                headers: { 'content-type': 'text/html; charset=utf-8' },
-                contentType: 'text/html',
-                bodySnippet: pageContent,
-                error: null
-              };
-
-              icase.schema.liveInspection = {
-                status: 'SUCCESS',
-                screenshotCaptured: true,
-                screenshotBytes: shotBuf.length,
-                pageExtraction: extraction,
-                blockedRequests: blockedReqs,
-                isolationReport: {
-                  sandboxType: 'PLAYWRIGHT_CHROMIUM_OBSERVATION',
-                  playwrightAvailable: true,
-                  chromiumSandboxEnabled: true,
-                  credentialsIsolated: true,
-                  proxyEnforced: true,
-                  runtimeMode: 'LOCAL_ISOLATED_OBSERVATION'
-                }
-              };
-
-              icase.addEvidence(EVIDENCE_PROVENANCE.OBSERVED, 'http', 'Mode C Live Browser DOM & Viewport Screenshot Captured',
-                `Chromium rendered page (${extraction.domNodes} nodes), captured ${shotBuf.length}-byte viewport screenshot, and extracted ${extraction.forms.length} interactive form(s).`,
-                icase.schema.liveInspection);
-
-              for (const br of blockedReqs) {
-                icase.addEvidence(EVIDENCE_PROVENANCE.OBSERVED, 'network', 'Observation Mode: Mutating Submission Blocked',
-                  `${br.method} request to ${br.url} blocked to prevent data transmission.`, br);
-              }
-            } catch (pwErr) {
-              icase.log('Playwright observation worker error: ' + pwErr.message, 'warn');
-              liveExtracted = liveRes.pageExtraction;
-              httpProbe = {
-                status: 'FAILED',
-                statusCode: null,
-                statusText: 'WORKER_OFFLINE',
-                initialUrl: parsed.normalizedUrl,
-                finalUrl: parsed.normalizedUrl,
-                redirectCount: 0,
-                redirectChain: [],
-                latencyMs: liveRes.timingMs || 0,
-                headers: {},
-                contentType: '',
-                bodySnippet: null,
-                error: liveRes.errors?.join('; ') || pwErr.message
-              };
-            }
+            const failure = (liveRes.errors || []).join('; ') || 'Isolated worker failed or the required container runtime is unavailable.';
+            icase.schema.renderStatus = 'RENDER_FAILED';
+            icase.log('Mode C refused: ' + failure, 'warn');
+            httpProbe = {
+              status: 'FAILED', statusCode: null, statusText: 'ISOLATED_WORKER_UNAVAILABLE',
+              initialUrl: parsed.normalizedUrl, finalUrl: parsed.normalizedUrl,
+              redirectCount: 0, redirectChain: [], latencyMs: liveRes.timingMs || 0,
+              headers: {}, contentType: '', bodySnippet: null, error: failure
+            };
+            icase.addEvidence(EVIDENCE_PROVENANCE.OBSERVED, 'http', 'Isolated Live Inspection Refused',
+              'Mode C did not execute because the required isolated container inspection was unavailable: ' + failure, liveRes);
           }
         }
+      } else if (icase.schema.inspectionMode === 'MODE_B') {
+        icase.log('MODE B: tracing HTTP redirects and headers without browser rendering.');
+        const redirectResult = await RedirectTracer.trace(parsed.normalizedUrl, { timeoutMs: 5000, maxHops: 10 });
+        icase.schema.redirectAssessment = redirectResult;
+        const lastHop = redirectResult.redirectChain.at(-1) || {};
+        httpProbe = {
+          status: redirectResult.status === 'SUCCESS' ? 'SUCCESS' : redirectResult.status,
+          statusCode: lastHop.status || null,
+          statusText: redirectResult.status,
+          initialUrl: redirectResult.initialUrl,
+          finalUrl: redirectResult.finalUrl,
+          redirectCount: redirectResult.hopsCount,
+          redirectChain: redirectResult.redirectChain,
+          latencyMs: redirectResult.redirectChain.reduce((total, hop) => total + (hop.latencyMs || 0), 0),
+          headers: redirectResult.headers,
+          contentType: redirectResult.headers['content-type'] || '',
+          bodySnippet: null,
+          error: redirectResult.error
+        };
+        icase.addEvidence(EVIDENCE_PROVENANCE.OBSERVED, 'http', 'Mode B HTTP Redirect Trace',
+          `${redirectResult.summary} Risk level: ${redirectResult.riskLevel}.`, redirectResult);
+        const traceEvidence = icase.schema.evidence.at(-1);
+        redirectResult.evidenceId = traceEvidence?.id || null;
       } else if (demoConfig) {
         // Mode A on demoConfig: URL-only heuristics, zero live browser execution, zero screenshot
         icase.schema.isDemo = true;
@@ -770,11 +866,35 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           `Simulated sandbox response for test vector ${parsed.hostname}`,
           httpProbe);
       } else {
-        httpProbe = await HTTPReconInvestigator.probe(parsed.normalizedUrl, { timeoutMs: 4000 });
+        // Mode A is intentionally URL-only. Target contact requires the separate,
+        // consented Mode B trace or isolated Mode C inspection.
+        httpProbe = {
+          status: 'NOT_RUN',
+          statusCode: null,
+          statusText: 'NOT_REQUESTED',
+          initialUrl: parsed.normalizedUrl,
+          finalUrl: parsed.normalizedUrl,
+          redirectCount: 0,
+          redirectChain: [],
+          latencyMs: 0,
+          headers: {},
+          contentType: '',
+          bodySnippet: null,
+          error: 'Mode A is URL-only. No HTTP request was made to the target.'
+        };
+      }
+
+      if (Number(httpProbe.statusCode) === 403) {
+        icase.schema.accessStatus = 'BLOCKED_HTTP_403';
+        if (icase.schema.inspectionMode !== INSPECTION_MODE.ISOLATED_LIVE) icase.schema.inspectionStatus = 'CONTENT_UNAVAILABLE';
+      } else if (Number(httpProbe.statusCode) >= 400 && icase.schema.inspectionMode !== INSPECTION_MODE.ISOLATED_LIVE) {
+        icase.schema.accessStatus = 'HTTP_ERROR';
+        icase.schema.inspectionStatus = 'HTTP_ERROR_DOCUMENT';
       }
 
       icase.schema.httpAnalysis = {
-        status: httpProbe.status === 'SUCCESS' ? STAGE_STATUS.COMPLETED : STAGE_STATUS.FAILED,
+        status: httpProbe.status === 'SUCCESS' ? STAGE_STATUS.COMPLETED
+          : (httpProbe.status === 'NOT_RUN' ? STAGE_STATUS.NOT_RUN : STAGE_STATUS.FAILED),
         statusCode: httpProbe.statusCode,
         statusText: httpProbe.statusText,
         initialUrl: httpProbe.initialUrl,
@@ -783,12 +903,24 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         redirectChain: httpProbe.redirectChain,
         latencyMs: httpProbe.latencyMs,
         headers: httpProbe.headers,
+        requestHeaders: httpProbe.requestHeaders || {},
+        correlationId: httpProbe.correlationId || null,
+        responseOrigin: httpProbe.responseOrigin || null,
+        responseDiagnostics: httpProbe.responseDiagnostics || null,
+        responseBodyExcerpt: httpProbe.bodySnippet || '',
+        accessRestriction: httpProbe.accessRestriction || null,
+        egressObservations: httpProbe.egressObservations || null,
         contentType: httpProbe.contentType,
         responseSize: httpProbe.bodySnippet ? httpProbe.bodySnippet.length : 0,
         serverHeader: httpProbe.headers['server'] || null,
         error: httpProbe.error,
         timestamp: Date.now()
       };
+
+      if (!dnsRes) {
+        dnsRes = await dnsPromise;
+        recordHostResult(dnsRes);
+      }
 
       let formsFound = [];
       let scriptsFound = [];
@@ -825,13 +957,14 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         // ── Step 6: Page Structure & DOM Excavation + Page Intent Intelligence ──
         icase.setStage(CASE_STATE.PAGE_ANALYSIS);
         const pageExt = liveExtracted || PageStructureExtractor.extract(httpProbe.bodySnippet, parsed.hostname);
-        formsFound = pageExt.forms;
-        scriptsFound = pageExt.scripts;
+        const isAccessErrorDocument = Number(httpProbe.statusCode) >= 400;
+        formsFound = isAccessErrorDocument ? [] : pageExt.forms;
+        scriptsFound = isAccessErrorDocument ? [] : pageExt.scripts;
 
         const intentAnalysis = PageIntentEngine.analyze(pageExt, parsed, icase.schema.identityAnalysis);
 
         icase.schema.pageAnalysis = {
-          status: STAGE_STATUS.COMPLETED,
+          status: isAccessErrorDocument ? 'CONTENT_UNAVAILABLE' : STAGE_STATUS.COMPLETED,
           title: pageExt.title,
           headings: pageExt.headings || [],
           metaDescription: pageExt.metaDescription || null,
@@ -839,20 +972,22 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           domNodes: pageExt.domNodes,
           htmlBytes: pageExt.htmlBytes,
           intent: {
-            primary: intentAnalysis.primary,
-            secondary: intentAnalysis.secondary,
-            confidence: intentAnalysis.confidence,
+            primary: isAccessErrorDocument ? 'NOT_ASSESSED' : intentAnalysis.primary,
+            secondary: isAccessErrorDocument ? null : intentAnalysis.secondary,
+            confidence: isAccessErrorDocument ? 0 : intentAnalysis.confidence,
             modelResult: intentAnalysis.modelResult,
             ruleBaseline: intentAnalysis.ruleBaseline,
             intentConsistency: intentAnalysis.intentConsistency,
             claimedPurpose: intentAnalysis.claimedPurpose,
             observedPurpose: intentAnalysis.observedPurpose,
             purposeConsistency: intentAnalysis.purposeConsistency,
-            purposeMismatch: intentAnalysis.purposeMismatch,
-            mismatchReason: intentAnalysis.mismatchReason,
-            requestedActions: intentAnalysis.requestedActions,
-            requestedData: intentAnalysis.requestedData,
-            summary: intentAnalysis.summary
+            purposeMismatch: isAccessErrorDocument ? false : intentAnalysis.purposeMismatch,
+            mismatchReason: isAccessErrorDocument ? null : intentAnalysis.mismatchReason,
+            requestedActions: isAccessErrorDocument ? [] : intentAnalysis.requestedActions,
+            requestedData: isAccessErrorDocument ? [] : intentAnalysis.requestedData,
+            summary: isAccessErrorDocument
+              ? { text: `HTTP ${httpProbe.statusCode} access-denial document captured; the target website's purpose could not be assessed.` }
+              : intentAnalysis.summary
           },
           dataFlow: intentAnalysis.dataFlow,
           forms: pageExt.forms,
@@ -861,14 +996,17 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           links: pageExt.links,
           externalDomains: pageExt.externalDomains,
           domFingerprint: pageExt.domFingerprint,
-          screenshotAvailable: Boolean((liveExtracted && liveExtracted.screenshotAvailable) || (icase.schema.liveInspection && icase.schema.liveInspection.screenshotCaptured))
+          screenshotAvailable: Boolean((liveExtracted && liveExtracted.screenshotAvailable) || (icase.schema.liveInspection && icase.schema.liveInspection.screenshotCaptured)),
+          renderStatus: icase.schema.renderStatus || 'RENDER_PARTIAL'
         };
-        icase.schema.coverage.website = STAGE_STATUS.COMPLETED;
+        icase.schema.coverage.website = isAccessErrorDocument ? STAGE_STATUS.NOT_RUN : STAGE_STATUS.COMPLETED;
         icase.schema.coverage.network = STAGE_STATUS.COMPLETED;
 
-        icase.log(`PAGE EXCAVATED: ${pageExt.forms.length} forms, ${pageExt.scripts.length} scripts, ${pageExt.externalDomains.length} external domains | Intent: ${intentAnalysis.primary}`);
+        icase.log(isAccessErrorDocument
+          ? `ACCESS ERROR DOCUMENT CAPTURED: HTTP ${httpProbe.statusCode}; target page intent/content not assessed.`
+          : `PAGE EXCAVATED: ${pageExt.forms.length} forms, ${pageExt.scripts.length} scripts, ${pageExt.externalDomains.length} external domains | Intent: ${intentAnalysis.primary}`);
         
-        if (pageExt.forms.length > 0 || pageExt.scripts.length > 0) {
+        if (!isAccessErrorDocument && (pageExt.forms.length > 0 || pageExt.scripts.length > 0)) {
           icase.addEvidence(
             demoConfig ? EVIDENCE_PROVENANCE.SIMULATED : EVIDENCE_PROVENANCE.OBSERVED,
             'page',
@@ -879,7 +1017,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         }
 
         // Add Intent Evidence
-        icase.addEvidence(
+        if (!isAccessErrorDocument) icase.addEvidence(
           demoConfig ? EVIDENCE_PROVENANCE.SIMULATED : EVIDENCE_PROVENANCE.DERIVED,
           'page',
           `Page Intent Recognized: ${intentAnalysis.primary}`,
@@ -888,7 +1026,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         );
 
         // Check for Purpose Mismatch Breakpoint
-        if (intentAnalysis.purposeMismatch) {
+        if (!isAccessErrorDocument && intentAnalysis.purposeMismatch) {
           icase.schema.trustBreakpoints.push({
             type: 'PURPOSE_MISMATCH',
             expected: intentAnalysis.claimedPurpose,
@@ -905,7 +1043,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         }
 
         // Check external POST collector endpoints
-        for (const form of pageExt.forms) {
+        for (const form of (isAccessErrorDocument ? [] : pageExt.forms)) {
           if (form.isExternal) {
             icase.schema.networkAnalysis.formSubmissions.push(form.action);
             icase.addGraphNode(`collector_${form.action}`, form.action, 'collector', { action: form.action });
@@ -926,6 +1064,20 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           }
         }
 
+      } else if (httpProbe.status === 'NOT_RUN') {
+        icase.schema.coverage.http = STAGE_STATUS.NOT_RUN;
+        icase.schema.coverage.website = STAGE_STATUS.NOT_RUN;
+        icase.schema.coverage.network = STAGE_STATUS.NOT_RUN;
+        icase.schema.pageAnalysis.status = STAGE_STATUS.NOT_RUN;
+        icase.schema.pageAnalysis.title = 'Page not inspected';
+        icase.schema.pageAnalysis.headings = [];
+        icase.schema.pageAnalysis.forms = [];
+        icase.schema.pageAnalysis.scripts = [];
+        icase.schema.pageAnalysis.screenshotAvailable = false;
+        icase.schema.networkAnalysis.status = STAGE_STATUS.NOT_RUN;
+        icase.log('MODE A: URL features and deterministic rules completed; target HTTP/page inspection was not run.');
+        icase.addEvidence(EVIDENCE_PROVENANCE.DERIVED, 'meta', 'Page Inspection Not Run',
+          'Mode A does not connect to the target. Use the consented redirect trace or isolated browser inspection for live observations.');
       } else {
         // HTTP Failed — Strictly record failure and DO NOT fabricate subsequent stages
         icase.schema.coverage.http = STAGE_STATUS.FAILED;
@@ -936,7 +1088,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           `Network probe could not reach target: ${httpProbe.error}. Website/DOM analysis unavailable.`,
           { error: httpProbe.error });
 
-        // ── Fallback Intelligence Summary (Unreachable Host) ──
+        // ── Fallback Intelligence Summary (unreachable target or unavailable inspector) ──
         // Populate pageAnalysis.intent so the UI always has a summary to display,
         // even when the target was offline or blocked.
         {
@@ -945,6 +1097,10 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
           const _modelProb  = icase.schema.modelResult?.probabilityPhishing;
           const _isPhish    = _ruleCls === 'PHISHING' || icase.schema.modelResult?.prediction === 'PHISHING';
           const _bps        = icase.schema.trustBreakpoints;
+          const _isolationRefused = icase.schema.inspectionMode === INSPECTION_MODE.ISOLATED_LIVE &&
+            icase.schema.liveInspection?.isolationReport?.runtimeMode === 'REFUSED_INSECURE_RUNTIME';
+          const _unavailableTitle = _isolationRefused ? 'Isolated Renderer Unavailable' : `Unreachable Host (${parsed.hostname})`;
+          const _unavailableReason = httpProbe.error || 'No HTTP response was observed.';
 
           const _bpLines = _bps.length > 0
             ? _bps.map(b => `  • ${b.type}: ${b.description}`).join('\n')
@@ -952,13 +1108,15 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
 
           const _summaryText = [
             '===============================================================',
-            'TARGET INTELLIGENCE SUMMARY (PRE-EXECUTION / UNREACHABLE HOST)',
+            _isolationRefused
+              ? 'TARGET INTELLIGENCE SUMMARY (LIVE RENDERING REFUSED — ISOLATION UNAVAILABLE)'
+              : 'TARGET INTELLIGENCE SUMMARY (PRE-EXECUTION / UNREACHABLE HOST)',
             '===============================================================',
             '',
             'WHAT THIS TARGET APPEARS TO BE (PRE-EXECUTION INFERENCE)',
             `Target URL:        ${parsed.normalizedUrl}`,
             `Inferred Role:     ${_isPhish ? 'SUSPICIOUS_CREDENTIAL_PORTAL' : 'EXTERNAL_WEB_RESOURCE'}`,
-            `Network State:     HTTP PROBE UNREACHABLE (${httpProbe.error || 'Server offline or blocked'})`,
+            `Network State:     ${httpProbe.statusText || 'HTTP PROBE FAILED'} (${_unavailableReason})`,
             `Rule Engine Score: ${_ruleScore} / 100 (${_ruleCls})`,
             `Model Phishing P:  ${_modelProb !== null && _modelProb !== undefined ? ((_modelProb * 100).toFixed(1) + '%') : 'N/A'}`,
             '',
@@ -966,18 +1124,22 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
             _bpLines,
             '',
             'INSPECTION LIMITATIONS & UNKNOWNS',
-            'Live webpage HTML could not be retrieved because the destination host failed to respond to HTTP reconnaissance.',
-            'Form fields, input types, and potential submission routing remain unobserved due to host unreachability.',
+            _isolationRefused
+              ? 'Live webpage HTML and screenshot were not captured because the required isolated container runtime was unavailable; host-process browser fallback is prohibited.'
+              : 'Live webpage HTML could not be retrieved because the destination host failed to respond to HTTP reconnaissance.',
+            _isolationRefused
+              ? 'Form fields, rendered content, network behaviour, and screenshot clues remain unobserved because no isolated browser ran.'
+              : 'Form fields, input types, and potential submission routing remain unobserved due to host unreachability.',
             'Lexical risk score reflects high-confidence static URL indicators.',
             '==============================================================='
           ].join('\n');
 
           icase.schema.pageAnalysis = {
             status: STAGE_STATUS.FAILED,
-            title: `Unreachable Host (${parsed.hostname})`,
+            title: _unavailableTitle,
             domNodes: 0,
             htmlBytes: 0,
-            headings: ['HTTP Probe Unreachable', `Target Host: ${parsed.hostname}`],
+            headings: [_isolationRefused ? 'Isolated Renderer Unavailable' : 'HTTP Probe Unreachable', `Target Host: ${parsed.hostname}`],
             metaDescription: null,
             buttons: [],
             forms: [],
@@ -986,17 +1148,17 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
             links: [],
             externalDomains: [],
             domFingerprint: null,
-            screenshotAvailable: false,
+            screenshotAvailable: Boolean(icase.schema.initialScreenshotUrl),
             dataFlow: null,
             intent: {
               primary: _isPhish ? 'SUSPICIOUS_PORTAL' : 'UNKNOWN',
-              secondary: 'UNREACHABLE_HOST',
+              secondary: _isolationRefused ? 'ISOLATED_RENDERER_UNAVAILABLE' : 'UNREACHABLE_HOST',
               confidence: _isPhish ? 0.80 : 0.50,
               modelResult: null,
               ruleBaseline: _ruleCls,
               intentConsistency: 'INFERRED_FROM_LEXICAL',
               claimedPurpose: parsed.hostname,
-              observedPurpose: 'UNREACHABLE_HOST',
+              observedPurpose: _isolationRefused ? 'INSPECTION_UNAVAILABLE' : 'UNREACHABLE_HOST',
               purposeConsistency: 'INCOMPLETE',
               purposeMismatch: false,
               mismatchReason: null,
@@ -1104,7 +1266,12 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
       icase.setStage(CASE_STATE.EVIDENCE_FINALIZATION);
       icase.schema.coverage.evidence = STAGE_STATUS.RUNNING;
 
-      const isHttpSuccess = icase.schema.coverage.http === STAGE_STATUS.COMPLETED;
+      const hasHttpResponse = icase.schema.coverage.http === STAGE_STATUS.COMPLETED;
+      const responseCode = Number(icase.schema.httpAnalysis?.statusCode) || null;
+      const isHttpSuccess = hasHttpResponse && (responseCode === null || (responseCode >= 200 && responseCode < 400));
+      const isAccessRestricted = icase.schema.accessStatus === 'BLOCKED_HTTP_403' || responseCode === 403;
+      const isUrlOnlyPreliminary = icase.schema.inspectionMode === INSPECTION_MODE.URL_ONLY &&
+        icase.schema.coverage.http === STAGE_STATUS.NOT_RUN;
       const modelProb = icase.schema.modelResult.probabilityPhishing || 0;
       const isModelPhish = icase.schema.modelResult.prediction === 'PHISHING';
       const isModelLegit = icase.schema.modelResult.prediction === 'LEGITIMATE';
@@ -1117,9 +1284,18 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
       const missingEvidence = [];
       const limitations = [];
 
+      if (!hasHttpResponse) {
+        missingEvidence.push('HTTP_CONNECTION');
+        limitations.push(isUrlOnlyPreliminary
+          ? 'Target webpage was not fetched in Mode A; page content, redirects, and network behaviour remain unobserved.'
+          : 'Target HTTP server could not be reached or inspected from the required execution environment.');
+      }
       if (!isHttpSuccess) {
-        missingEvidence.push('HTTP_CONNECTION', 'PAGE_DOM_ANALYSIS', 'NETWORK_TRAFFIC_CAPTURE');
-        limitations.push('Target HTTP server was unreachable from investigation sandbox.');
+        missingEvidence.push('PAGE_CONTENT_ASSESSMENT');
+        limitations.push(isAccessRestricted
+          ? 'The endpoint returned HTTP 403. The captured document is an access-denial response; the target website content and purpose could not be assessed.'
+          : (hasHttpResponse ? `The endpoint returned HTTP ${responseCode}; its response document does not establish the target website content.`
+            : 'Page content and rendered website behavior were not available.'));
       }
       if (icase.schema.identityAnalysis.identityContinuity === 'UNVERIFIED') {
         missingEvidence.push('INDEPENDENT_ORGANIZATIONAL_REGISTRATION');
@@ -1156,23 +1332,41 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
         icase.schema.assessment.riskLevel = 'HIGH';
         icase.schema.assessment.headline = isHttpSuccess
           ? 'High-Probability Phishing Infrastructure'
-          : 'Suspicious URL Lexical Signal — Investigation Incomplete (HTTP Unreachable)';
+          : (isUrlOnlyPreliminary
+            ? 'Suspicious URL Signal — Webpage Not Inspected'
+            : 'Suspicious URL Lexical Signal — Investigation Incomplete (HTTP Unreachable)');
         icase.schema.assessment.summary = `URL rule engine scored ${icase.schema.ruleEngineResult?.ruleScore || 0}/100 (${icase.schema.ruleEngineResult?.classification || 'UNKNOWN'}) and model generated ${(modelProb * 100).toFixed(1)}% phishing probability.`;
         icase.schema.assessment.evidenceSufficient = isHttpSuccess;
         icase.schema.assessment.reasons = icase.schema.modelResult.topContributingFeatures.map(f => `${f.name}: ${f.description}`);
       }
       // 3. HTTP Failed with Legitimate Model Signal: strictly INVESTIGATION_INCOMPLETE, NEVER confirmed or malicious
+      else if (isAccessRestricted) {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.UNVERIFIED;
+        icase.schema.assessment.riskLevel = icase.schema.ruleEngineResult?.classification === 'UNDER_REVIEW' ? 'MODERATE' : 'LOW';
+        icase.schema.assessment.headline = 'HTTP 403 Access Restriction — Site Content Unavailable';
+        icase.schema.assessment.summary = 'The isolated browser received an HTTP 403 response and captured the access-denial document. This does not establish that the target site is phishing or safe; page content could not be assessed.';
+        icase.schema.assessment.evidenceSufficient = false;
+        icase.schema.assessment.reasons = ['HTTP 403 is an access restriction, not a phishing verdict.', 'Rendered screenshot documents the response; target website content remains unavailable.'];
+      }
+      else if (!isHttpSuccess && isUrlOnlyPreliminary) {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.UNVERIFIED;
+        icase.schema.assessment.riskLevel = icase.schema.ruleEngineResult?.classification === 'UNDER_REVIEW' ? 'MODERATE' : 'LOW';
+        icase.schema.assessment.headline = 'Initial URL Assessment — Webpage Not Fetched';
+        icase.schema.assessment.summary = 'URL structure and deterministic rules were assessed. Redirects and page content were not inspected, so this is not a final website safety verdict.';
+        icase.schema.assessment.evidenceSufficient = false;
+        icase.schema.assessment.reasons = ['Mode A made no HTTP request to the target.', 'Page content, redirects, and screenshot evidence are not available until a live mode is explicitly run.'];
+      }
       else if (!isHttpSuccess) {
         icase.schema.assessment.verificationState = VERIFICATION_STATE.INVESTIGATION_INCOMPLETE;
         icase.schema.assessment.riskLevel = 'LOW';
         icase.schema.assessment.headline = isModelLegit
-          ? 'Model Indication (Legitimate) — Investigation Incomplete (HTTP Unreachable)'
-          : 'Inconclusive Signals — Investigation Incomplete (HTTP Unreachable)';
-        icase.schema.assessment.summary = 'The URL model indicates legitimate structure, but live investigation could not obtain sufficient network/DOM evidence to independently verify the site.';
+          ? 'Model Indication (Legitimate) — Live Inspection Incomplete'
+          : 'Inconclusive Signals — Live Inspection Incomplete';
+        icase.schema.assessment.summary = `The requested live inspection did not complete. ${icase.schema.httpAnalysis.error || 'No sufficient network/page evidence was collected.'}`;
         icase.schema.assessment.evidenceSufficient = false;
         icase.schema.assessment.reasons = [
           'No confirmed threat can be established from the available evidence.',
-          'HTTP server could not be reached to perform DOM/network verification.'
+          icase.schema.httpAnalysis.error || 'Live page evidence could not be collected.'
         ];
       }
       // 4. HTTP Succeeded, No Threat Observed, Model Legitimate: Verified Authentic
@@ -1197,6 +1391,70 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
       icase.schema.assessment.supporting_evidence_ids = supportingIds;
       icase.schema.assessment.missing_evidence = missingEvidence;
       icase.schema.assessment.limitations = limitations;
+
+      const screenshotIntelligence = icase.schema.screenshotIntelligence || null;
+      const fixturePageText = [icase.schema.pageAnalysis?.title, icase.schema.pageAnalysis?.metaDescription,
+        ...(icase.schema.pageAnalysis?.headings || [])].filter(Boolean).join(' ');
+      const isSecurityTestFixture = screenshotIntelligence?.indicators?.isSecurityTestFixture === true ||
+        (/phishing\s*page\s*example/i.test(fixturePageText) &&
+          /(test page|safe browsing|social engineering content example)/i.test(fixturePageText));
+      const pageVerdict = isHttpSuccess && !isSecurityTestFixture &&
+        (hasExfilForm || hasPurposeMismatch || (hasIdentityMismatch && formsFound.length > 0)) ? 'PHISHING' : null;
+      icase.schema.urlRiskAssessment = {
+        ruleScore: icase.schema.ruleEngineResult?.ruleScore ?? 0,
+        classification: icase.schema.ruleEngineResult?.classification || 'SAFE',
+        summary: `Deterministic URL assessment: ${icase.schema.ruleEngineResult?.classification || 'SAFE'} (${icase.schema.ruleEngineResult?.ruleScore ?? 0}/100).`
+      };
+      icase.schema.pageContentAssessment = {
+        status: isHttpSuccess ? (icase.schema.inspectionMode === INSPECTION_MODE.ISOLATED_LIVE ? 'COMPLETED' : 'PARTIAL')
+          : (isAccessRestricted ? 'CONTENT_UNAVAILABLE' : (hasHttpResponse ? 'HTTP_ERROR_DOCUMENT' : 'NOT_RUN')),
+        fullRenderedInspection: isHttpSuccess && icase.schema.inspectionMode === INSPECTION_MODE.ISOLATED_LIVE,
+        accessStatus: icase.schema.accessStatus || (hasHttpResponse ? 'HTTP_RESPONSE' : 'NO_RESPONSE'),
+        renderStatus: icase.schema.renderStatus || 'RENDER_UNKNOWN',
+        screenshotStatus: icase.schema.screenshotStatus || 'NOT_CAPTURED',
+        verdict: pageVerdict,
+        riskLevel: isAccessRestricted ? 'NOT_RUN' : (pageVerdict ? 'CRITICAL' :
+          ((screenshotIntelligence?.findings || []).some(f => ['FAKE_SOFTWARE_UPDATE', 'SOCIAL_ENGINEERING'].includes(f.category)) ? 'MODERATE' :
+            (isHttpSuccess ? 'LOW' : 'NOT_RUN'))),
+        hasExfiltration: hasExfilForm,
+        hasCredentialsTrap: formsFound.some(form => form.hasPassword || form.hasSensitive) ||
+          screenshotIntelligence?.indicators?.hasCredentialsPrompt === true,
+        hasFakeSoftwareUpdate: screenshotIntelligence?.indicators?.hasFakeSoftwareUpdate === true,
+        isSecurityTestFixture,
+        screenshotCluesCount: screenshotIntelligence?.findings?.length || 0,
+        summary: pageVerdict
+          ? icase.schema.assessment.summary
+          : (isAccessRestricted
+            ? 'HTTP 403 access restriction. The captured screenshot shows the response document only; the target site content and intent are not assessed.'
+            : (!isHttpSuccess && icase.schema.inspectionMode === INSPECTION_MODE.ISOLATED_LIVE
+            ? `Rendered page assessment unavailable: ${icase.schema.httpAnalysis.error || 'isolated inspection did not complete.'}`
+            : 'Page intent and security signals are recorded separately; functional login fields alone do not establish phishing.'))
+      };
+      const overall = OverallRiskAggregator.aggregate({
+        urlAssessment: icase.schema.urlRiskAssessment,
+        redirectAssessment: icase.schema.redirectAssessment,
+        pageContentAssessment: icase.schema.pageContentAssessment,
+        isTestFixture: isSecurityTestFixture,
+        hasIdentityMismatch,
+        hasExfiltration: hasExfilForm,
+        inspectionMode: icase.schema.inspectionMode || 'URL_ONLY'
+      });
+      icase.schema.overallAssessment = overall;
+      icase.schema.assessment.verdict = overall.finalVerdict;
+      if (overall.finalVerdict === 'KNOWN_SECURITY_TEST_FIXTURE') {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.KNOWN_SECURITY_TEST_FIXTURE;
+      } else if (overall.finalVerdict === 'PHISHING') {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.HIGH_RISK_CONFIRMED;
+      } else if (overall.finalVerdict === 'UNDER_REVIEW') {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.UNVERIFIED;
+      } else {
+        icase.schema.assessment.verificationState = VERIFICATION_STATE.EVIDENCE_SUFFICIENT;
+      }
+      icase.schema.assessment.riskLevel = overall.finalRiskLevel;
+      icase.schema.assessment.headline = overall.headline;
+      icase.schema.assessment.summary = overall.summary;
+      icase.schema.assessment.determiningComponent = overall.determiningComponent;
+      icase.schema.assessment.combinedScore = overall.combinedScore;
 
       // Deception Path
       if (hasIdentityMismatch && claimedEntity) {
@@ -1253,8 +1511,10 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
       }
 
       icase.schema.coverage.evidence = STAGE_STATUS.COMPLETED;
-      icase.schema.status = isHttpSuccess ? CASE_STATE.COMPLETED : CASE_STATE.INCOMPLETE;
+      icase.schema.status = (hasHttpResponse || isUrlOnlyPreliminary) ? CASE_STATE.COMPLETED : CASE_STATE.INCOMPLETE;
       icase.schema.completedAt = Date.now();
+      if (icase.schema.modeCTimings) icase.schema.modeCTimings.total_investigation_ms = icase.schema.completedAt - icase.schema.createdAt;
+      if (icase.schema.modeCTimings) icase.log(`MODE C FINAL TIMINGS (ms): ${JSON.stringify(icase.schema.modeCTimings)}`);
       InvestigationEngine.CASE_HISTORY.set(icase.id, icase.schema);
       icase.log(`CASE FINALIZED: Status=${icase.schema.status} | Assessment=${icase.schema.assessment.headline}`);
       icase.emit('complete', icase.schema);
@@ -1262,6 +1522,7 @@ Anomalies:         ${qrAnalysis.anomalies.length > 0 ? qrAnalysis.anomalies.join
     } catch (err) {
       icase.schema.status = CASE_STATE.FAILED;
       icase.schema.errors.push(err.message);
+      if (icase.schema.modeCTimings) icase.schema.modeCTimings.total_investigation_ms = Date.now() - icase.schema.createdAt;
       icase.log(`INVESTIGATION ERROR: ${err.message}`, 'error');
       icase.emit('error', { error: err.message });
       icase.emit('complete', icase.schema);

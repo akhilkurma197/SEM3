@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { InvestigationEngine, CASE_STATE, EVIDENCE_PROVENANCE } from './investigation_engine.js';
 import { URLFeatureExtractor } from './ml/url_features.js';
+import { DNSReconInvestigator } from './investigators/dns_recon.js';
 
 describe('Investigation Engine Core Tests', () => {
 
@@ -60,7 +61,34 @@ describe('Investigation Engine Core Tests', () => {
 
     assert.equal(icase.status, CASE_STATE.COMPLETED);
     assert.equal(icase.riskLevel, 'LOW');
-    assert.equal(icase.schema.assessment.verificationState, 'EVIDENCE_SUFFICIENT');
+    assert.equal(icase.schema.httpAnalysis.status, 'NOT_RUN');
+    assert.equal(icase.schema.pageAnalysis.status, 'NOT_RUN');
+    assert.equal(icase.schema.assessment.verificationState, 'UNVERIFIED');
+    assert.equal(icase.schema.overallAssessment.finalVerdict, 'UNDER_REVIEW');
+    assert.match(icase.schema.assessment.summary, /not inspected|not fetched/i);
+  });
+
+  it('keeps Mode A URL-only and does not issue target HTTP requests', async () => {
+    const originalDnsResolve = DNSReconInvestigator.resolve;
+    const originalFetch = globalThis.fetch;
+    DNSReconInvestigator.resolve = async hostname => ({
+      status: 'SUCCESS', hostname, ipAddresses: ['203.0.113.10'], dnsRecords: [],
+      nameservers: [], asn: null, tlsMetadata: null, source: 'controlled test',
+      timestamp: Date.now(), error: null
+    });
+    globalThis.fetch = async () => { throw new Error('Mode A attempted network access'); };
+    try {
+      const icase = InvestigationEngine.createCase('https://url-only-check.example');
+      await InvestigationEngine.investigate(icase);
+      assert.equal(icase.schema.httpAnalysis.status, 'NOT_RUN');
+      assert.equal(icase.schema.coverage.website, 'NOT_RUN');
+      assert.equal(icase.schema.pageAnalysis.screenshotAvailable, false);
+      assert.equal(icase.schema.status, CASE_STATE.COMPLETED);
+      assert.equal(icase.schema.overallAssessment.finalVerdict, 'UNDER_REVIEW');
+    } finally {
+      DNSReconInvestigator.resolve = originalDnsResolve;
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it('detects homoglyph spoofing characters via feature extractor', () => {

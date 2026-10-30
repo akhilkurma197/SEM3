@@ -125,6 +125,46 @@
     .btn.primary-glow:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(56,189,248,0.38); }
     .btn.primary-glow:active { transform: translateY(0); }
 
+    /* ── HEADER MODE SELECTOR ── */
+    .header-mode-selector { display: inline-flex; align-items: center; background: #090d13; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px; gap: 2px; }
+    .mode-select-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .mode-select-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .mode-select-btn.active-mode-a {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 10px rgba(56,189,248,0.3) !important;
+    }
+    .mode-select-btn.active-mode-b {
+      background: #6366f1 !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      border-color: #818cf8 !important;
+      box-shadow: 0 0 10px rgba(99,102,241,0.4) !important;
+    }
+    .mode-select-btn.active-mode-c {
+      background: #eab308 !important;
+      color: #000000 !important;
+      font-weight: 800 !important;
+      border-color: #facc15 !important;
+      box-shadow: 0 0 14px rgba(234,179,8,0.5) !important;
+    }
+
     /* ── SAMPLE CHIPS ── */
     .quick-samples label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 10px; }
     .sample-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -350,8 +390,8 @@
       <!-- MODULE 1: Link X-Ray -->
       <section id="mod-link" class="dashboard-module active">
         <div class="module-header">
-          <h2>🔗 2-Tier Phishing &amp; Impersonation Detector</h2>
-          <p>Tier 1 fast-scans 12 URL risk signals instantly (ML model). Tier 2 traces live HTTP redirect chain hop-by-hop and detects page intent — without ever opening the link.</p>
+          <h2>🔗 URL Risk Triage</h2>
+          <p>Check URL structure and deterministic risk signals. Redirect tracing and rendered page screenshots are available in the Investigation Console with the selected inspection mode.</p>
         </div>
         <div class="grid-2">
           <div class="card glass">
@@ -635,9 +675,9 @@ const LinkAnalyzer = {
       url, parsedDomain: parsed.hostname,
       riskScore: t1.riskScore, riskPercentage: riskPct + '%', riskLevel,
       featuresTriggered: t1.triggered, brandImpersonation: t1.brandImpersonation,
-      redirectChain: [url], tier2Pending: true,
+      redirectChain: [], tier2Pending: false,
       explanation: `[${riskPct}% Threat Level — Tier 1] ${t1.explanation}`,
-      recommendation: riskLevel === 'LOW' ? '✅ Tier 1 pre-scan passed. Running live redirect trace…' : '⚠️ Threat detected. Running live redirect trace to confirm destination…'
+      recommendation: riskLevel === 'LOW' ? 'URL-only pre-scan complete. Use the Investigation Console for redirect tracing or page inspection.' : 'URL risk signals detected. Use the Investigation Console to collect additional evidence.'
     };
   },
 
@@ -1489,6 +1529,8 @@ const Explainability = {
   linkReport(report, isPartial) {
     const rl = (report.riskLevel||'low').toLowerCase();
     const cls = (rl==='critical'||rl==='high') ? 'critical' : rl;
+    const overallBadgeClass = report.overallVerdict === 'PHISHING' ? 'critical'
+      : (report.overallVerdict === 'SAFE' ? 'low' : 'moderate');
     const isHigh = cls==='critical'||cls==='high';
 
     const impBox = report.brandImpersonation ? `
@@ -1502,8 +1544,12 @@ const Explainability = {
       return `<li class="impact-${ic}"><span class="impact ${ic}">${f.impact}</span><strong>${f.name}:</strong> ${f.desc}</li>`;
     }).join('');
 
-    const tier2Banner = isPartial
-      ? `<div class="tier2-pending"><span class="mini-spin"></span>Running Tier 2 live HTTP redirect trace…</div>`
+    const tier2Banner = report.executionNote
+      ? `<p class="tier2-pending" style="margin:6px 0;font-size:11px;line-height:1.5;">${report.executionNote}</p>`
+      : report.isPreliminary
+      ? `<div class="tier2-pending">URL-only assessment complete — redirects, webpage content, and screenshots were not inspected.</div>`
+      : isPartial
+      ? `<div class="tier2-pending"><span class="mini-spin"></span>Loading deterministic URL assessment…</div>`
       : (report.detectedIntent
           ? `<div class="tier2-complete">✓ Tier 2 Complete — Detected Intent: <strong style="margin-left:4px;">${report.detectedIntent}</strong></div>`
           : `<div class="tier2-complete">✓ Tier 2 HTTP trace complete</div>`);
@@ -1511,18 +1557,22 @@ const Explainability = {
     return `
       <div class="trust-report ${cls}">
         <div class="report-header">
-          <span class="badge ${cls}">${report.riskLevel} RISK</span>
-          <span class="score">Threat Index: ${report.riskPercentage||((report.riskScore||0)*100).toFixed(0)+'%'}</span>
+          <span class="badge ${overallBadgeClass}" title="Overall investigation verdict">${report.overallVerdict || 'UNDER REVIEW'}</span>
+          <span class="score">URL Rule Score: ${report.riskPercentage||((report.riskScore||0)*100).toFixed(0)+'%'}</span>
         </div>
-        <h4 class="report-title">${isHigh ? '⚠️ Phishing & Fraud Threat Detected' : '✅ Verified Safe Web Link'}</h4>
+        <h4 class="report-title">${report.overallVerdict === 'PHISHING' ? '⚠️ Phishing & Fraud Threat Detected' : (report.overallVerdict === 'SAFE' ? '✅ Verified Safe Web Link' : 'Under Review — More website evidence is needed')}</h4>
         ${tier2Banner}
         <div id="rule-engine-score-card" style="margin:10px 0;padding:10px 14px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;display:flex;align-items:center;gap:10px;font-family:'Space Mono',monospace;font-size:11px;flex-wrap:wrap;">
           <span style="color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;">🔢 Rule Engine Score:</span>
           <span id="idx-rule-score" style="color:#38bdf8;font-weight:800;font-size:16px;">—</span>
           <span style="color:#475569;font-size:11px;">/ 100</span>
-          <span id="idx-rule-badge" style="display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:10px;background:#1e293b;color:#94a3b8;border:1px solid #334155;">EVALUATING…</span>
+          <span id="idx-rule-badge" role="status" aria-live="polite" style="display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px;background:#1e293b;color:#94a3b8;border:1px solid #334155;">UNDER REVIEW</span>
           <span id="idx-rule-desc" style="color:#64748b;font-size:10px;margin-left:auto;">Running deterministic URL rule engine…</span>
         </div>
+        <details id="idx-rule-evidence" style="margin:0 0 10px;padding:8px 12px;background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:6px;color:#cbd5e1;font-size:11px;">
+          <summary style="cursor:pointer;color:#94a3b8;">Rule evidence and assessment time</summary>
+          <div class="idx-rule-evidence-body" style="padding-top:8px;line-height:1.6;"></div>
+        </details>
         <p class="summary-text">${report.explanation}</p>
         ${impBox}
         ${featItems ? `<div class="features-list"><h5>Key Security Findings (${(report.featuresTriggered||[]).length} signals)</h5><ul>${featItems}</ul></div>` : ''}
@@ -1803,7 +1853,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetUrl) {
       const invBtn = document.createElement('a');
       invBtn.className = 'btn';
-      invBtn.href = `investigation.html?target=${encodeURIComponent(targetUrl)}`;
+      const caseParam = report.caseId ? `&caseId=${encodeURIComponent(report.caseId)}` : '';
+      invBtn.href = `investigation.html?target=${encodeURIComponent(targetUrl)}${caseParam}`;
       invBtn.style.cssText = 'flex:2;min-width:280px;justify-content:center;text-decoration:none;background:linear-gradient(135deg,rgba(14,165,233,0.3),rgba(56,189,248,0.4));border:2px solid #38bdf8;color:#ffffff;font-weight:800;font-size:12.5px;padding:12px 18px;border-radius:8px;box-shadow:0 0 25px rgba(56,189,248,0.4);letter-spacing:0.4px;display:flex;align-items:center;gap:8px;';
       invBtn.innerHTML = '🔬 Open Investigation Console';
       btnGroup.appendChild(invBtn);
@@ -1827,25 +1878,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlInput   = document.getElementById('main-url-input');
   const scanBtn    = document.getElementById('main-scan-btn');
   const linkResult = document.getElementById('link-results-content');
-
-  // Helper: inject rule engine score into the result card once the backend pipeline completes
-  async function fetchRuleScore(url) {
+  // Helper: fetch completed investigation case with rule engine result and final assessment
+  async function fetchCaseResult(url) {
     try {
       const createRes = await fetch('/api/cases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: url, targetType: 'URL' })
+        body: JSON.stringify({ target: url, targetType: 'URL', inspectionMode: 'URL_ONLY' })
       });
       if (!createRes.ok) return null;
       const { caseId } = await createRes.json();
 
-      // Poll for completion (max 20 iterations = 10s)
-      for (let i = 0; i < 20; i++) {
+      // Poll for completion (max 28 iterations = 14s)
+      for (let i = 0; i < 28; i++) {
         await new Promise(r => setTimeout(r, 500));
         const r = await fetch(`/api/cases/${caseId}`);
         const schema = await r.json();
         if (schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE') {
-          return schema.ruleEngineResult || null;
+          return schema;
         }
       }
     } catch(e) {}
@@ -1858,57 +1908,112 @@ document.addEventListener('DOMContentLoaded', () => {
     linkResult.innerHTML = Explainability.linkReport(t1, true); // isPartial=true shows spinner badge
     addCertBtn(linkResult, { ...t1, url });
 
-    // PHASE 2 & Rule Engine: run concurrently without race conditions
-    const [t2, rr] = await Promise.all([
-      LinkAnalyzer.runTier2Async(t1),
-      fetchRuleScore(url)
-    ]);
+    // PHASE 2 & Backend Case: run concurrently without race conditions
+    // The dashboard performs URL-only triage. Redirect observations and
+    // rendered-page evidence must come from the protected Investigation API.
+    const caseSchema = await fetchCaseResult(url);
+    const t2 = { ...t1, redirectChain: [], detectedIntent: null };
 
-    // Reconcile overall verdict deterministically:
-    // If Rule Engine flagged PHISHING or Tier 1/2 flagged brand impersonation / critical threat:
-    const isCritical = (rr && rr.classification === 'PHISHING') || t2.riskLevel === 'CRITICAL' || Boolean(t2.brandImpersonation);
-    const isUnderReview = !isCritical && ((rr && rr.classification === 'UNDER_REVIEW') || t2.riskLevel === 'HIGH' || t2.riskLevel === 'MODERATE');
+    const rr = caseSchema?.ruleEngineResult || null;
+    const rawRuleVerdict = rr?.verdict || rr?.classification;
+    const hasRuleResult = Boolean(rr?.timestamp && ['SAFE', 'UNDER_REVIEW', 'PHISHING'].includes(rawRuleVerdict));
+    const assessment = caseSchema?.assessment || null;
+    const overall = caseSchema?.overallAssessment || null;
+    const pageAssessment = caseSchema?.pageContentAssessment || null;
+    const isFixture = pageAssessment?.isSecurityTestFixture || overall?.finalVerdict === 'KNOWN_SECURITY_TEST_FIXTURE';
+    const isPreliminary = (!caseSchema || caseSchema.inspectionMode === 'URL_ONLY')
+      && overall?.finalVerdict !== 'PHISHING'
+      && !isFixture;
 
-    const finalRiskLevel = isCritical ? 'CRITICAL' : (isUnderReview ? 'MODERATE' : 'LOW');
-    const finalScore = isCritical
-      ? Math.max(t2.riskScore, (rr?.ruleScore || 75) / 100)
-      : (isUnderReview ? Math.max(t2.riskScore, (rr?.ruleScore || 35) / 100) : Math.min(t2.riskScore, 0.20));
+    // Home results reflect only deterministic URL rules. Live page signals
+    // remain a note and do not alter the URL verdict.
+    const ruleVerdict = hasRuleResult ? rawRuleVerdict : 'UNDER_REVIEW';
+    const finalRiskLevel = ruleVerdict === 'PHISHING' ? 'CRITICAL'
+      : (ruleVerdict === 'UNDER_REVIEW' ? 'MODERATE' : 'LOW');
+    const finalScore = Number.isFinite(Number(rr?.ruleScore)) ? Number(rr.ruleScore) / 100 : 0;
 
     const reconciled = {
       ...t2,
       riskLevel: finalRiskLevel,
       riskScore: parseFloat(finalScore.toFixed(2)),
-      riskPercentage: Math.round(finalScore * 100) + '%'
+      riskPercentage: Math.round(finalScore * 100) + '%',
+      featuresTriggered: (rr?.rulesTriggered || []).map(rule => ({
+        impact: rule.severity || 'INFO', name: rule.name || rule.id || 'URL rule',
+        desc: rule.description || rule.reason || 'Deterministic URL rule triggered.'
+      })),
+      brandImpersonation: null,
+      overallVerdict: ruleVerdict,
+      explanation: rr?.explanation || 'The deterministic URL rule assessment is incomplete; treat this result as under review.',
+      recommendation: ruleVerdict === 'PHISHING'
+        ? 'URL rules identified phishing indicators. Do not enter credentials or sensitive information.'
+        : (ruleVerdict === 'UNDER_REVIEW'
+          ? 'URL rules could not establish a decisive verdict. Verify the destination before sharing sensitive information.'
+          : 'URL rules found no decisive phishing indicators. This URL-only result does not verify page content.'),
+      isPreliminary: true,
+      executionNote: caseSchema?.inspectionMode === 'ISOLATED_LIVE'
+        ? `Mode C live inspection: ${caseSchema.liveInspection?.screenshotCaptured ? 'screenshot captured' : 'screenshot not captured'}. Page intent: ${caseSchema.pageAnalysis?.intent?.primary || 'not available'}. This does not change the URL rule verdict.`
+        : 'Mode C live inspection was not run for this URL-only result. Page intent is available from the Investigation Console after isolated inspection.'
     };
 
     // Render unified report ONCE
-    linkResult.innerHTML = Explainability.linkReport(reconciled, false) + Explainability.chainHTML(t2.redirectChain, t2.chainMeta);
-    addCertBtn(linkResult, { ...reconciled, url });
+    linkResult.innerHTML = Explainability.linkReport(reconciled, false);
+    addCertBtn(linkResult, { ...reconciled, url, caseId: caseSchema?.id });
 
-    // Inject rule engine pill
+    // Inject combined rule engine & multi-mode score card
     const scoreEl = linkResult.querySelector('#idx-rule-score');
     const badgeEl = linkResult.querySelector('#idx-rule-badge');
     const descEl  = linkResult.querySelector('#idx-rule-desc');
-    if (scoreEl && rr) {
-      scoreEl.textContent = rr.ruleScore;
+
+    if (scoreEl) {
+      const displayScore = rr && Number.isFinite(Number(rr.ruleScore)) ? rr.ruleScore : 'N/A';
+      scoreEl.textContent = displayScore;
+
       const badgeColors = {
-        SAFE:         'background:#064e3b;color:#34d399;border-color:#065f46;',
-        UNDER_REVIEW: 'background:#422006;color:#fbbf24;border-color:#713f12;',
-        PHISHING:     'background:#450a0a;color:#f87171;border-color:#7f1d1d;'
+        SAFE:                         'background:#064e3b;color:#34d399;border-color:#065f46;',
+        UNDER_REVIEW:                 'background:#422006;color:#fbbf24;border-color:#713f12;',
+        PHISHING:                     'background:#450a0a;color:#f87171;border-color:#7f1d1d;',
+        CRITICAL:                     'background:#450a0a;color:#f87171;border-color:#7f1d1d;',
+        KNOWN_SECURITY_TEST_FIXTURE:  'background:#042f2e;color:#2dd4bf;border-color:#0d9488;'
       };
+
       if (badgeEl) {
+        const ruleResultComplete = hasRuleResult;
+        const badgeText = ruleResultComplete ? (rr.verdict || rr.classification) : 'UNDER REVIEW';
+        const badgeKey = badgeText;
         badgeEl.setAttribute('style',
-          `display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:10px;border:1px solid;${badgeColors[rr.classification] || badgeColors.UNDER_REVIEW}`
+          `display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:10px;border:1px solid;${badgeColors[badgeKey] || badgeColors.UNDER_REVIEW}`
         );
-        badgeEl.textContent = rr.classification;
+        badgeEl.textContent = badgeText;
       }
       if (descEl) {
-        const triggered = (rr.rulesTriggered || []).length;
-        descEl.textContent = `${triggered} rule${triggered !== 1 ? 's' : ''} triggered · ${rr.explanation || ''}`.slice(0, 120);
+        if (hasRuleResult) {
+          const triggered = (rr.rulesTriggered || []).length;
+          descEl.textContent = `${triggered} rule${triggered !== 1 ? 's' : ''} triggered · ${rr.explanation || ''} URL verdict only; this does not guarantee the live site is safe.`.slice(0, 190);
+        } else {
+          descEl.textContent = 'Rule Engine result is incomplete or unavailable. No SAFE verdict can be issued.';
+        }
       }
-    } else if (scoreEl) {
-      scoreEl.textContent = 'N/A';
-      if (descEl) descEl.textContent = 'Backend offline — start server to see rule score';
+      const evidenceDetails = linkResult.querySelector('#idx-rule-evidence .idx-rule-evidence-body');
+      if (evidenceDetails) {
+        evidenceDetails.replaceChildren();
+        const timestamp = rr?.timestamp ? new Date(rr.timestamp).toLocaleString() : 'Unavailable';
+        const header = document.createElement('div');
+        header.textContent = `Assessment time: ${timestamp} · Triggered rules: ${(rr?.rulesTriggered || []).length}`;
+        evidenceDetails.appendChild(header);
+        const ruleList = document.createElement('ul');
+        ruleList.style.margin = '6px 0 0';
+        for (const rule of rr?.rulesTriggered || []) {
+          const li = document.createElement('li');
+          li.textContent = `${rule.name || rule.ruleId || 'Rule'} · ${rule.severity || 'UNKNOWN'} · ${rule.explanation || ''}`;
+          ruleList.appendChild(li);
+        }
+        if (!ruleList.children.length) {
+          const li = document.createElement('li');
+          li.textContent = hasRuleResult ? 'No suspicious URL rules triggered.' : 'No rule evidence is available because URL analysis did not complete.';
+          ruleList.appendChild(li);
+        }
+        evidenceDetails.appendChild(ruleList);
+      }
     }
   }
 

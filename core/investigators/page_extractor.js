@@ -3,6 +3,8 @@
  * Autopsies DOM structure, semantic headings, inputs, forms, scripts, and exfiltration vectors.
  */
 
+import { URLParser } from '../ml/url_parser.js';
+
 export class PageStructureExtractor {
   /**
    * Analyzes raw HTML payload or DOM string and extracts structural security signals.
@@ -112,13 +114,27 @@ export class PageStructureExtractor {
       let destinationHost = baseHostname;
       let isExternal = false;
 
+      const getBaseDomain = (h) => {
+        try {
+          const parsed = URLParser.parse('http://' + h);
+          return (parsed && parsed.domain) ? parsed.domain.toLowerCase() : h.toLowerCase();
+        } catch {
+          return (h || '').toLowerCase();
+        }
+      };
+      const baseApexDomain = getBaseDomain(baseHostname);
+
       if (action.startsWith('http://') || action.startsWith('https://') || action.startsWith('//')) {
         try {
           const fullAction = action.startsWith('//') ? 'https:' + action : action;
           const parsedActionUrl = new URL(fullAction);
           destinationHost = parsedActionUrl.hostname;
+          const destApexDomain = getBaseDomain(destinationHost);
           if (destinationHost && destinationHost !== baseHostname) {
-            isExternal = true;
+            // It is only an external exfiltration endpoint if it targets a different registered apex domain
+            if (!destApexDomain || destApexDomain !== baseApexDomain) {
+              isExternal = true;
+            }
             externalDomainsSet.add(destinationHost);
           }
         } catch {}
@@ -219,6 +235,88 @@ export class PageStructureExtractor {
       });
     }
 
+    // 6b. Standalone Inputs Detection (e.g. dynamic forms or div-wrapped inputs outside <form>)
+    if (forms.length === 0) {
+      const standaloneInputs = [];
+      const standaloneFields = [];
+      let standaloneHasPassword = false;
+      let standaloneHasSensitive = false;
+
+      const inputMatches = html.matchAll(/<input(?:\s+([^>]*))?>/gi);
+      for (const input of inputMatches) {
+        const attrs = input[1] || '';
+        const nameMatch = attrs.match(/name=["']([^"']*?)["']/i);
+        const typeMatch = attrs.match(/type=["']([^"']*?)["']/i);
+        const placeholderMatch = attrs.match(/placeholder=["']([^"']*?)["']/i);
+        const idMatch = attrs.match(/id=["']([^"']*?)["']/i);
+
+        const name = nameMatch ? nameMatch[1].trim() : (idMatch ? idMatch[1].trim() : '');
+        const type = typeMatch ? typeMatch[1].toLowerCase().trim() : 'text';
+        const placeholder = placeholderMatch ? placeholderMatch[1].trim() : '';
+
+        const nameLower = name.toLowerCase();
+        const placeholderLower = placeholder.toLowerCase();
+
+        const isHidden = type === 'hidden';
+        const isDisabled = /\bdisabled\b/i.test(attrs);
+        const isReadOnly = /\breadonly\b/i.test(attrs);
+        const isSubmit = type === 'submit' || type === 'button' || type === 'image';
+        const isSystemParam = isHidden && ['ie', 'hl', '_csrf'].includes(nameLower);
+        const isUserEditable = !isHidden && !isDisabled && !isReadOnly && !isSubmit && !isSystemParam;
+
+        let isPwd = (type === 'password' || nameLower.includes('pass') || nameLower.includes('pwd'));
+        let isSens = isPwd || (!isSystemParam && ['otp', 'pin', 'ssn', 'card', 'cvv', 'cvc', 'exp', 'account', 'token', 'aadhaar', 'pan'].some(s => nameLower.includes(s) || placeholderLower.includes(s)));
+
+        if (isPwd) standaloneHasPassword = true;
+        if (isSens) standaloneHasSensitive = true;
+
+        if (name) standaloneFields.push(name);
+        standaloneInputs.push({
+          name: name || `input_${standaloneInputs.length + 1}`,
+          type,
+          placeholder,
+          isPassword: isPwd,
+          isSensitive: isSens,
+          isHidden,
+          isDisabled,
+          isReadOnly,
+          isSubmit,
+          isSystemParam,
+          isUserEditable
+        });
+      }
+
+      if (standaloneInputs.length > 0) {
+        forms.push({
+          action: '(unattached-dom-inputs)',
+          method: 'GET',
+          destinationHost: baseHostname,
+          fields: standaloneFields,
+          inputs: standaloneInputs,
+          userEditableInputs: standaloneInputs.filter(i => i.isUserEditable),
+          hiddenInputs: standaloneInputs.filter(i => i.isHidden),
+          systemParams: standaloneInputs.filter(i => i.isSystemParam),
+          hasPassword: standaloneHasPassword,
+          hasSensitive: standaloneHasSensitive,
+          isExternal: false,
+          isStandalone: true
+        });
+      }
+    }
+
+    // 6c. Image Elements
+    const images = [];
+    const imgMatches = html.matchAll(/<img(?:\s+([^>]*))?>/gi);
+    for (const match of imgMatches) {
+      const attrs = match[1] || '';
+      const srcMatch = attrs.match(/src=["']([^"']*?)["']/i);
+      const altMatch = attrs.match(/alt=["']([^"']*?)["']/i);
+      images.push({
+        src: srcMatch ? srcMatch[1].trim() : '',
+        alt: altMatch ? altMatch[1].trim() : ''
+      });
+    }
+
     // 7. Scripts
     const scripts = [];
     const scriptTags = html.matchAll(/<script(?:\s+([^>]*))?>([\s\S]*?)<\/script>/gi);
@@ -310,6 +408,7 @@ export class PageStructureExtractor {
       domNodes,
       htmlBytes,
       forms,
+      images,
       scripts,
       iframes,
       links: links.slice(0, 50),

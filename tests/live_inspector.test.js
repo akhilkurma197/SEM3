@@ -249,6 +249,26 @@ describe('IntelligenceSummaryBuilder — 8 Core Questions Synthesizer', () => {
     assert.match(summary.behaviourMatch, /MISMATCH/);
     assert.ok(summary.suspicionIndicators.length > 0);
   });
+
+  it('reports HTTP 403 as an access restriction without attributing the error page to the website', () => {
+    const summary = IntelligenceSummaryBuilder.build({
+      accessStatus: 'BLOCKED_HTTP_403',
+      target: 'https://rvce.edu.in/',
+      httpAnalysis: { statusCode: 403, finalUrl: 'https://rvce.edu.in/' },
+      liveInspection: { accessStatus: 'BLOCKED_HTTP_403', finalUrl: 'https://rvce.edu.in/' },
+      pageAnalysis: {
+        title: '403 Forbidden', buttons: ['Retry'], forms: [{ action: 'https://unrelated.invalid', isExternal: true }],
+        intent: { primary: 'LOGIN', requestedData: ['PASSWORD'] }
+      },
+      assessment: { limitations: [] }, networkAnalysis: { requests: [] }, trustBreakpoints: [], evidence: []
+    }, 'ISOLATED_LIVE');
+    assert.match(summary.whatIsThis, /HTTP 403/i);
+    assert.match(summary.whatIsThis, /could not be assessed/i);
+    assert.match(summary.whatInfoRequested, /Not assessed/i);
+    assert.match(summary.whereCouldItGo, /Not assessed/i);
+    assert.equal(summary.suspicionIndicators.length, 0);
+    assert.ok(summary.notInspected.some(item => /HTTP 403/i.test(item)));
+  });
 });
 
 describe('InvestigationEngine — Mode C Integration & Case Schema', () => {

@@ -100,6 +100,13 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
   border-color: #38bdf8 !important;
   box-shadow: 0 0 10px rgba(56,189,248,0.3) !important;
 }
+.mode-select-btn.active-mode-b {
+  background: #6366f1 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 10px rgba(99,102,241,0.4) !important;
+}
 .mode-select-btn.active-mode-c {
   background: #eab308 !important;
   color: #000000 !important;
@@ -271,10 +278,13 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
       <span class="case-target-display" id="hdr-target-display">Ready for digital fraud investigation</span>
       <span class="badge UNKNOWN" id="hdr-state-pill">IDLE</span>
 
-      <!-- DUAL MODE SELECTOR BUTTONS -->
+      <!-- THREE MODE SELECTOR BUTTONS -->
       <div class="header-mode-selector" style="display:inline-flex;align-items:center;background:#090d13;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px;gap:2px;">
         <button id="btn-hdr-mode-a" class="mode-select-btn active-mode-a" onclick="switchInspectionMode('URL_ONLY')" title="Mode A: Safe URL lexical & reputation heuristics without connecting to target">
           <span style="font-size:11px;">📄</span> Mode A: URL-Only
+        </button>
+        <button id="btn-hdr-mode-b" class="mode-select-btn" onclick="switchInspectionMode('MODE_B')" title="Mode B: Active Redirect & HTTP Header Tracer without running browser">
+          <span style="font-size:11px;">🔀</span> Mode B: Redirect Tracer
         </button>
         <button id="btn-hdr-mode-c" class="mode-select-btn" onclick="switchInspectionMode('ISOLATED_LIVE')" title="Mode C: Render dynamic DOM & capture browser screenshot">
           <span style="font-size:11px;">🔬</span> Mode C: Live Inspect
@@ -410,6 +420,39 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
             Initialize an investigation case with a URL or QR payload to reconstruct the full forensic evidence chain.
           </div>
           <div class="finding-why" id="ov-finding-why" style="display:none;"></div>
+        </div>
+
+        <!-- Three-Layer Multilayer Assessment Card -->
+        <div class="card" id="overview-three-layers-card" style="border-left: 3px solid var(--blue);margin-bottom:14px;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title">🛡️ Multilayer Risk Assessment (Separated Layers)</span>
+            <span class="badge" id="overview-fixture-badge" style="display:none;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid #34d399;">KNOWN SECURITY TEST FIXTURE</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-top:10px;">
+            <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Layer 1: URL Structure Risk</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0;">
+                <span id="layer-url-score" style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--blue);">—</span>
+                <span id="layer-url-class" class="badge SAFE">SAFE</span>
+              </div>
+              <div id="layer-url-summary" style="font-size:11px;color:var(--text-secondary);line-height:1.5;">Lexical &amp; structural URL rules evaluated.</div>
+            </div>
+            <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Layer 2: Page Behaviour &amp; Content</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0;">
+                <span id="layer-page-risk" class="badge SAFE">LOW</span>
+                <span id="layer-page-clues" style="font-size:11px;color:var(--text-muted);">0 clues</span>
+              </div>
+              <div id="layer-page-summary" style="font-size:11px;color:var(--text-secondary);line-height:1.5;">DOM structure &amp; screenshot intelligence.</div>
+            </div>
+            <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Layer 3: Overall Investigation Verdict</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0;">
+                <span id="layer-overall-risk" class="badge SAFE">LOW</span>
+              </div>
+              <div id="layer-overall-summary" style="font-size:11px;color:var(--text-secondary);line-height:1.5;">Combined multi-source deterministic assessment.</div>
+            </div>
+          </div>
         </div>
 
         <!-- Stage Coverage Grid -->
@@ -567,6 +610,25 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
             <tbody id="http-headers-tbody"><tr><td colspan="2" class="empty-state">No headers captured.</td></tr></tbody>
           </table>
         </div>
+        <div class="card" id="redirect-trace-card" style="display:none;margin-top:14px;">
+          <div class="card-header" style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+            <span class="card-title">Mode B — Observed HTTP Redirect Trace</span>
+            <span class="badge OBSERVED" id="redirect-trace-state">NOT RUN</span>
+          </div>
+          <p id="redirect-trace-summary" style="font-size:12px;color:var(--text-secondary);line-height:1.6;"></p>
+          <div class="field-grid" style="margin-bottom:10px;">
+            <span class="field-key">Initial URL:</span><span class="field-val" id="redirect-trace-initial">—</span>
+            <span class="field-key">Final reachable URL:</span><span class="field-val" id="redirect-trace-final">—</span>
+            <span class="field-key">Evidence:</span><span class="field-val" id="redirect-trace-evidence">—</span>
+          </div>
+          <div style="overflow:auto;">
+            <table class="tech-table">
+              <thead><tr><th>Hop</th><th>Response URL</th><th>Status</th><th>Location / Destination</th><th>Connected / validated IP</th><th>Timing</th><th>Relevant headers</th><th>Outcome</th></tr></thead>
+              <tbody id="redirect-trace-tbody"><tr><td colspan="8" class="empty-state">No redirect trace observations.</td></tr></tbody>
+            </table>
+          </div>
+          <div id="redirect-trace-limitations" style="margin-top:10px;padding:9px 11px;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--text-secondary);">Mode B does not render or inspect the full webpage.</div>
+        </div>
       </section>
 
       <section class="view-pane" id="view-website">
@@ -583,6 +645,10 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
           </div>
           <div id="web-screenshot-body" style="padding:12px;background:var(--bg-panel);border-radius:6px;">
             <div id="web-screenshot-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;text-align:center;">
+              <div id="web-screenshot-countdown" role="status" aria-live="polite" style="display:none;flex-direction:column;align-items:center;gap:8px;margin-bottom:12px;color:#c084fc;">
+                <span style="font-size:28px;font-weight:700;"><span id="web-screenshot-countdown-seconds">10</span>s</span>
+                <span id="web-screenshot-countdown-message" style="max-width:660px;text-align:center;line-height:1.5;">Preparing isolated webpage screenshot…</span>
+              </div>
               <span style="font-size:32px;margin-bottom:8px;opacity:0.6;">📷</span>
               <strong style="color:var(--text-secondary);font-size:13px;margin-bottom:4px;">Webpage Screenshot Unavailable</strong>
               <span id="web-screenshot-reason" style="max-width:440px;line-height:1.6;">Mode A (URL-Only) does not connect to target. Run Mode C (Isolated Live Inspection) to render page and capture browser preview.</span>
@@ -600,6 +666,20 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
                 <img id="web-screenshot-img" style="max-width:100%;max-height:480px;object-fit:contain;cursor:zoom-in;" onclick="zoomScreenshot()" alt="Inspected webpage screenshot" />
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Screenshot Intelligence Extracted Clues Card -->
+        <div class="card" id="web-screenshot-intel-card" style="border-left: 3px solid #a855f7;margin-bottom:14px;display:none;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title" style="color:#c084fc;">👁️ Viewport Screenshot Intelligence &amp; Evidence Clues</span>
+            <span class="badge" id="web-screenshot-intel-badge" style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #c084fc;">0 CLUES DETECTED</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;" id="web-screenshot-intel-summary">
+            Awaiting OCR extraction...
+          </div>
+          <div id="web-screenshot-intel-clues" style="display:flex;flex-direction:column;gap:8px;">
+            <!-- Populated dynamically -->
           </div>
         </div>
 
@@ -998,11 +1078,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
               <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Safe lexical & reputation heuristics. Zero direct connection to target.</div>
             </div>
           </label>
-          <label style="display:flex;align-items:flex-start;gap:10px;cursor:not-allowed;font-size:12px;color:var(--text-muted);opacity:0.5;padding:8px;">
-            <input type="radio" name="inspection-mode" value="SNAPSHOT" disabled style="margin-top:2px;" />
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--text-primary);padding:8px;border-radius:4px;border:1px solid rgba(99,102,241,0.3);background:rgba(99,102,241,0.04);">
+            <input type="radio" name="inspection-mode" value="MODE_B" style="margin-top:2px;" />
             <div>
-              <strong>Mode B: Snapshot Inspection (Disabled)</strong>
-              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Inspect cached / provided static HTML snapshot.</div>
+              <strong style="color:#818cf8;">Mode B: Active Redirect &amp; HTTP Header Tracer (Non-browser)</strong>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Safely trace 3xx redirect chain, meta refreshes, static JS hops, and inspect security headers.</div>
             </div>
           </label>
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--text-primary);padding:8px;border-radius:4px;border:1px solid rgba(234,179,8,0.3);background:rgba(234,179,8,0.04);">
@@ -1057,6 +1137,13 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-deep); color: 
           <li>Captures dynamic JavaScript DOM, form actions, third-party subresources, and viewport screenshot.</li>
         </ul>
       </div>
+
+      <label for="mode-c-capture-delay" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid rgba(56,189,248,.3);border-radius:6px;color:#cbd5e1;font-size:12px;">
+        <span><strong style="display:block;color:#38bdf8;">Screenshot capture delay</strong><span style="color:#94a3b8;">Starts after the page reaches its initial render milestone.</span></span>
+        <select id="mode-c-capture-delay" style="background:#0b1220;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:7px 10px;">
+          <option value="0">Capture immediately</option><option value="5000">5 seconds</option><option value="10000" selected>10 seconds (default)</option>
+        </select>
+      </label>
 
       <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:8px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
         <button class="btn" onclick="closeModeCConsentModal()" style="padding:9px 18px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-weight:600;">Cancel</button>
@@ -1221,6 +1308,11 @@ function showModeCConsentModal(target, caseId = null) {
   if (modal) modal.style.display = 'flex';
 }
 
+function selectedModeCCaptureDelay() {
+  const value = Number(document.getElementById('mode-c-capture-delay')?.value ?? 10000);
+  return [0, 5000, 10000].includes(value) ? value : 10000;
+}
+
 function closeModeCConsentModal() {
   const modal = document.getElementById('mode-c-consent-modal');
   if (modal) modal.style.display = 'none';
@@ -1239,6 +1331,16 @@ if (confirmModalBtn) {
       // Upgrade existing case to Mode C
       try {
         setHdrModeButtons('ISOLATED_LIVE');
+        if (window.activeCase) {
+          window.activeCase.schema = {
+            ...(window.activeCase.schema || {}),
+            id: caseId,
+            inspectionMode: 'ISOLATED_LIVE',
+            status: 'ISOLATED_LIVE_AUTHORIZED',
+            liveInspection: null
+          };
+          updateScreenshotCountdown(window.activeCase.schema);
+        }
         const canBtn = document.getElementById('btn-cancel-live');
         if (canBtn) canBtn.style.display = 'inline-block';
         const stPill = document.getElementById('hdr-state-pill');
@@ -1251,7 +1353,7 @@ if (confirmModalBtn) {
         const res = await fetch(`/api/cases/${caseId}/live-inspect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ consentConfirmed: true })
+          body: JSON.stringify({ consentConfirmed: true, captureDelayMs: selectedModeCCaptureDelay() })
         });
         if (!res.ok) {
           const err = await res.json();
@@ -1266,24 +1368,89 @@ if (confirmModalBtn) {
       }
     } else if (target) {
       setHdrModeButtons('ISOLATED_LIVE');
-      runInvestigation(target, 'ISOLATED_LIVE');
+      runInvestigation(target, 'ISOLATED_LIVE', true, selectedModeCCaptureDelay());
     }
   });
 }
 
 
 // ── Mode Switcher & Poller Helpers ─────────────────────────────────────────
+let screenshotCountdownCaseId = null;
+let screenshotCountdownStartedAt = null;
+let screenshotCountdownTimer = null;
+
+function updateScreenshotCountdown(schema) {
+  const wrap = document.getElementById('web-screenshot-countdown');
+  const secondsEl = document.getElementById('web-screenshot-countdown-seconds');
+  const messageEl = document.getElementById('web-screenshot-countdown-message');
+  if (!wrap || !schema?.id) return;
+  const terminal = ['COMPLETED', 'INCOMPLETE', 'FAILED', 'BLOCKED'].includes(schema.status);
+  const active = schema.inspectionMode === 'ISOLATED_LIVE'
+    && !terminal
+    && !schema.liveInspection?.screenshotCaptured;
+  if (!active) {
+    if (screenshotCountdownTimer) clearInterval(screenshotCountdownTimer);
+    screenshotCountdownTimer = null;
+    screenshotCountdownCaseId = null;
+    screenshotCountdownStartedAt = null;
+    const terminalWithoutShot = schema.inspectionMode === 'ISOLATED_LIVE'
+      && terminal
+      && !schema.initialScreenshotUrl
+      && !schema.liveInspection?.screenshotCaptured;
+    if (terminalWithoutShot) {
+      wrap.style.display = 'flex';
+      if (secondsEl) secondsEl.textContent = '—';
+      if (messageEl) {
+        const statusInfo = describeInspectionStatus(schema);
+        messageEl.textContent = `No screenshot was captured for this run. ${statusInfo.reason || 'The render did not produce a screenshot artifact.'}`;
+      }
+    } else {
+      wrap.style.display = 'none';
+    }
+    return;
+  }
+  if (screenshotCountdownCaseId !== schema.id) {
+    if (screenshotCountdownTimer) clearInterval(screenshotCountdownTimer);
+    screenshotCountdownCaseId = schema.id;
+    screenshotCountdownStartedAt = Date.now();
+    screenshotCountdownTimer = setInterval(() => {
+      if (window.activeCase?.id !== screenshotCountdownCaseId) return;
+      updateScreenshotCountdown(window.activeCase.schema || schema);
+    }, 250);
+  }
+  const capture = schema.screenshotCapture || {};
+  const delayMs = [0, 5000, 10000].includes(capture.captureDelayMs) ? capture.captureDelayMs : 10000;
+  const countdownStartedAt = Number(capture.countdownStartedAt || 0);
+  const countdownEndsAt = Number(capture.countdownEndsAt || 0);
+  // Use a ticking local fallback while the worker is starting. The previous
+  // fallback returned the full delay on every interval, so it appeared frozen.
+  // Once the worker publishes its post-render deadline, that is authoritative.
+  const fallbackStartedAt = screenshotCountdownStartedAt || Date.now();
+  const remaining = countdownStartedAt && countdownEndsAt
+    ? Math.max(0, Math.ceil((countdownEndsAt - Date.now()) / 1000))
+    : Math.max(0, Math.ceil((delayMs - (Date.now() - fallbackStartedAt)) / 1000));
+  wrap.style.display = 'flex';
+  if (secondsEl) secondsEl.textContent = String(remaining);
+  if (messageEl) {
+    const phase = capture.status || 'STARTING';
+    messageEl.textContent = phase === 'COUNTDOWN'
+      ? `Page rendered (${schema.renderStatus || 'readiness checked'}). Capturing in ${remaining}s…`
+      : (phase === 'CAPTURING' ? 'Countdown complete. Capturing the rendered page now…'
+      : (phase === 'READY' ? 'Screenshot captured; displaying the artifact…'
+      : (remaining > 0
+        ? `Loading the isolated page. Screenshot capture countdown: ${remaining}s.`
+        : 'Page is still loading; capture begins as soon as the worker confirms render readiness.')));
+  }
+}
+
 function setHdrModeButtons(mode) {
   const btnA = document.getElementById('btn-hdr-mode-a');
+  const btnB = document.getElementById('btn-hdr-mode-b');
   const btnC = document.getElementById('btn-hdr-mode-c');
   if (btnA && btnC) {
-    if (mode === 'ISOLATED_LIVE') {
-      btnA.className = 'mode-select-btn';
-      btnC.className = 'mode-select-btn active-mode-c';
-    } else {
-      btnA.className = 'mode-select-btn active-mode-a';
-      btnC.className = 'mode-select-btn';
-    }
+    btnA.className = 'mode-select-btn' + (mode === 'URL_ONLY' ? ' active-mode-a' : '');
+    if (btnB) btnB.className = 'mode-select-btn' + (mode === 'MODE_B' || mode === 'REDIRECT_TRACER' ? ' active-mode-b' : '');
+    btnC.className = 'mode-select-btn' + (mode === 'ISOLATED_LIVE' ? ' active-mode-c' : '');
   }
 }
 
@@ -1299,6 +1466,20 @@ function switchInspectionMode(mode) {
       if (radio) radio.checked = true;
       openIntakeModal();
     }
+  } else if (mode === 'MODE_B') {
+    if (window.activeCase && window.activeCase.target) {
+      if (window.activeCase.schema && (window.activeCase.schema.inspectionMode === 'MODE_B' || window.activeCase.schema.inspectionMode === 'REDIRECT_TRACER')) {
+        return;
+      }
+      if (!confirmModeBConsent(window.activeCase.target)) return;
+      setHdrModeButtons('MODE_B');
+      runInvestigation(window.activeCase.target, 'MODE_B', true);
+    } else {
+      const radio = document.querySelector('input[name="inspection-mode"][value="MODE_B"]');
+      if (radio) radio.checked = true;
+      setHdrModeButtons('MODE_B');
+      openIntakeModal();
+    }
   } else if (mode === 'URL_ONLY') {
     if (window.activeCase && window.activeCase.target) {
       if (window.activeCase.schema && window.activeCase.schema.inspectionMode === 'URL_ONLY') {
@@ -1312,6 +1493,12 @@ function switchInspectionMode(mode) {
       openIntakeModal();
     }
   }
+}
+
+function confirmModeBConsent(target) {
+  return window.confirm(
+    `Trace Redirects will make bounded, read-only HTTP GET requests to ${target || 'the submitted target'} through Trust Layer's controlled egress policy. It will not launch Chromium, execute JavaScript, or inspect the full rendered page. Continue?`
+  );
 }
 
 function pollLiveCaseUntilComplete(caseId) {
@@ -1334,11 +1521,25 @@ function pollLiveCaseUntilComplete(caseId) {
         const stPill = document.getElementById('hdr-state-pill');
         if (stPill) {
           stPill.className = 'badge ' + (schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN');
-          stPill.textContent = schema.status;
+          stPill.textContent = describeInspectionStatus(schema).badgeText;
+          stPill.title = describeInspectionStatus(schema).reason || '';
         }
       }
     } catch {}
   }, 800);
+}
+
+function describeInspectionStatus(schema) {
+  const live = schema.liveInspection || {};
+  const reason = live.errors?.[0] || live.error || schema.httpAnalysis?.error || schema.errors?.[0] || '';
+  const runtimeUnavailable = /container runtime|docker daemon|uncontained host subprocess/i.test(reason)
+    || live.isolationReport?.runtimeMode === 'REFUSED_INSECURE_RUNTIME';
+  return {
+    reason,
+    badgeText: schema.status === 'INCOMPLETE' && schema.inspectionMode === 'ISOLATED_LIVE'
+      ? (runtimeUnavailable ? 'INCOMPLETE · NO DOCKER' : 'INCOMPLETE · CAPTURE FAILED')
+      : (schema.status || 'UNKNOWN')
+  };
 }
 
 function handleUpgradeToLive() {
@@ -1376,15 +1577,29 @@ window.triggerCase = function(target, explicitMode = null) {
   const selectedMode = explicitMode || document.querySelector('input[name="inspection-mode"]:checked')?.value || 'URL_ONLY';
   if (selectedMode === 'ISOLATED_LIVE') {
     showModeCConsentModal(target);
+  } else if (selectedMode === 'MODE_B') {
+    if (confirmModeBConsent(target)) runInvestigation(target, selectedMode, true);
   } else {
-    runInvestigation(target, 'URL_ONLY');
+    runInvestigation(target, selectedMode);
   }
 };
 
 // ── Run Investigation Pipeline via Backend API ────────────────────────────
-async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
+async function runInvestigation(target, inspectionMode = 'URL_ONLY', consentConfirmed = false, captureDelayMs = 10000) {
   if (!target || !target.trim()) return;
   const cleanTarget = target.trim();
+
+  // A replacement URL or inspection mode is an explicit stop signal for the
+  // prior live run. Ask the backend to abort it before creating its successor.
+  const previousCase = window.activeCase;
+  const previousRuntimeActive = previousCase?.schema?.liveInspection?.runtimeSessionActive === true &&
+    Number(previousCase.schema.liveInspection.runtimeSessionUntil || 0) > Date.now();
+  if (previousCase?.id && previousCase.schema?.inspectionMode === 'ISOLATED_LIVE' &&
+      (previousRuntimeActive || !['COMPLETED', 'INCOMPLETE', 'BLOCKED', 'FAILED'].includes(previousCase.schema.status))) {
+    try {
+      await fetch(`/api/cases/${previousCase.id}/cancel-live`, { method: 'POST' });
+    } catch {}
+  }
 
   // Reset UI to running state
   document.getElementById('hdr-case-id').textContent = 'INITIALIZING...';
@@ -1403,6 +1618,8 @@ async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
       body: JSON.stringify({
         target: cleanTarget,
         inspectionMode: inspectionMode,
+        consentConfirmed: ['MODE_B', 'ISOLATED_LIVE'].includes(inspectionMode) && consentConfirmed,
+        ...(inspectionMode === 'ISOLATED_LIVE' ? { captureDelayMs: [0, 5000, 10000].includes(captureDelayMs) ? captureDelayMs : 10000 } : {}),
         expectedContext: document.getElementById('qr-expected-context')?.value || 'NONE'
       })
     });
@@ -1417,7 +1634,11 @@ async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
     document.getElementById('sb-case-info').textContent = `Case #${caseId} · ${cleanTarget}`;
 
     // Store a minimal activeCase ref for export
-    window.activeCase = activeCase = { id: caseId, target: cleanTarget, schema: null };
+    const initialSchema = inspectionMode === 'ISOLATED_LIVE'
+      ? { id: caseId, target: cleanTarget, inspectionMode, status: 'NORMALIZING' }
+      : null;
+    window.activeCase = activeCase = { id: caseId, target: cleanTarget, schema: initialSchema };
+    if (initialSchema) updateScreenshotCountdown(initialSchema);
 
   } catch (err) {
     document.getElementById('hdr-state-pill').className = 'badge CRITICAL';
@@ -1443,7 +1664,8 @@ async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
         const done = schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE' || schema.status === 'BLOCKED';
         if (done) {
           document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
-          document.getElementById('hdr-state-pill').textContent = schema.status;
+          document.getElementById('hdr-state-pill').textContent = describeInspectionStatus(schema).badgeText;
+          document.getElementById('hdr-state-pill').title = describeInspectionStatus(schema).reason || '';
           evtSource.close();
         }
       } else if (msg.event === 'complete' || msg.event === 'stage') {
@@ -1457,7 +1679,8 @@ async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
             const done = schema.status === 'COMPLETED' || schema.status === 'INCOMPLETE' || schema.status === 'BLOCKED';
             if (done) {
               document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
-              document.getElementById('hdr-state-pill').textContent = schema.status;
+              document.getElementById('hdr-state-pill').textContent = describeInspectionStatus(schema).badgeText;
+              document.getElementById('hdr-state-pill').title = describeInspectionStatus(schema).reason || '';
               evtSource.close();
             }
           })
@@ -1481,7 +1704,8 @@ async function runInvestigation(target, inspectionMode = 'URL_ONLY') {
           if (activeCase) activeCase.schema = schema;
           updateCaseUI(schema);
           document.getElementById('hdr-state-pill').className = `badge ${schema.status === 'COMPLETED' ? 'OBSERVED' : 'UNKNOWN'}`;
-          document.getElementById('hdr-state-pill').textContent = schema.status || 'DONE';
+          document.getElementById('hdr-state-pill').textContent = describeInspectionStatus(schema).badgeText || 'DONE';
+          document.getElementById('hdr-state-pill').title = describeInspectionStatus(schema).reason || '';
         })
         .catch(() => {});
       _finalFetch();
@@ -1500,6 +1724,14 @@ function updateCaseUI(schema) {
   // Header & Status bar
   document.getElementById('hdr-case-id').textContent = `CASE #${schema.id}`;
   document.getElementById('hdr-target-display').textContent = schema.target;
+  const headerStatus = document.getElementById('hdr-state-pill');
+  if (headerStatus) {
+    const statusInfo = describeInspectionStatus(schema);
+    headerStatus.textContent = statusInfo.badgeText;
+    headerStatus.title = statusInfo.reason || (schema.status === 'COMPLETED'
+      ? 'Investigation stages completed.'
+      : 'Investigation did not reach a complete result.');
+  }
   document.getElementById('side-ev-count').textContent = schema.evidence.length;
   document.getElementById('side-bp-count').textContent = schema.trustBreakpoints.length;
   document.getElementById('side-bp-count').classList.toggle('hidden', schema.trustBreakpoints.length === 0);
@@ -1530,6 +1762,60 @@ function updateCaseUI(schema) {
       `display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:${cc.bg};color:${cc.color};border:1px solid ${cc.border};`
     );
   }
+
+  // Populate Three-Layer Multilayer Risk Assessment Card
+  const urlAssessment = schema.urlRiskAssessment || {};
+  const pageAssessment = schema.pageContentAssessment || {};
+  const overallAssessment = schema.assessment || {};
+  const isFixture = pageAssessment.isSecurityTestFixture || overallAssessment.verificationState === 'KNOWN_SECURITY_TEST_FIXTURE';
+
+  const fixtureBadge = document.getElementById('overview-fixture-badge');
+  if (fixtureBadge) {
+    fixtureBadge.style.display = isFixture ? 'inline-block' : 'none';
+  }
+
+  const elUrlScore = document.getElementById('layer-url-score');
+  const elUrlClass = document.getElementById('layer-url-class');
+  const elUrlSum = document.getElementById('layer-url-summary');
+  if (elUrlScore) elUrlScore.textContent = urlAssessment.ruleScore ?? (schema.ruleEngineResult?.ruleScore ?? '—');
+  if (elUrlClass) {
+    const cls = urlAssessment.classification || schema.ruleEngineResult?.classification || 'SAFE';
+    elUrlClass.textContent = cls;
+    elUrlClass.className = `badge ${cls}`;
+  }
+  if (elUrlSum) elUrlSum.textContent = urlAssessment.summary || 'URL structure and deterministic rules.';
+
+  const elPageRisk = document.getElementById('layer-page-risk');
+  const elPageClues = document.getElementById('layer-page-clues');
+  const elPageSum = document.getElementById('layer-page-summary');
+  const redirectAssessment = schema.redirectAssessment || null;
+
+  if (schema.inspectionMode === 'MODE_B' && redirectAssessment) {
+    if (elPageRisk) {
+      elPageRisk.textContent = redirectAssessment.riskLevel || 'LOW';
+      elPageRisk.className = `badge ${redirectAssessment.riskLevel || 'LOW'}`;
+    }
+    if (elPageClues) elPageClues.textContent = `${redirectAssessment.hopsCount || 0} hop(s)`;
+    if (elPageSum) elPageSum.textContent = redirectAssessment.summary || 'Traced HTTP 3xx redirects and security headers.';
+  } else if (pageAssessment) {
+    if (elPageRisk) {
+      const pr = pageAssessment.riskLevel || 'LOW';
+      elPageRisk.textContent = isFixture ? 'SECURITY TEST FIXTURE' : pr;
+      elPageRisk.className = `badge ${isFixture ? 'MODEL' : pr}`;
+    }
+    if (elPageClues) elPageClues.textContent = `${pageAssessment.screenshotCluesCount || 0} visual clue(s)`;
+    if (elPageSum) elPageSum.textContent = pageAssessment.summary || 'DOM forms, scripts, and rendered viewport analysis.';
+  }
+
+  const overall = schema.overallAssessment || schema.assessment || {};
+  const elOverallRisk = document.getElementById('layer-overall-risk');
+  const elOverallSum = document.getElementById('layer-overall-summary');
+  if (elOverallRisk) {
+    const ovRisk = overall.finalRiskLevel || overall.riskLevel || 'UNKNOWN';
+    elOverallRisk.textContent = isFixture ? 'KNOWN TEST FIXTURE' : ovRisk;
+    elOverallRisk.className = `badge ${ovRisk}`;
+  }
+  if (elOverallSum) elOverallSum.textContent = overall.summary || overall.headline || 'Combined multi-source deterministic assessment.';
 
   const whyEl = document.getElementById('ov-finding-why');
   if (schema.assessment.reasons && schema.assessment.reasons.length > 0) {
@@ -1715,6 +2001,61 @@ function updateCaseUI(schema) {
     `).join('');
   }
 
+  const redirectCard = document.getElementById('redirect-trace-card');
+  if (redirectCard) {
+    const isTraceCase = schema.inspectionMode === 'MODE_B' || Boolean(redirectAssessment);
+    redirectCard.style.display = isTraceCase ? 'block' : 'none';
+    if (isTraceCase) {
+      const trace = redirectAssessment || {};
+      const state = document.getElementById('redirect-trace-state');
+      if (state) {
+        state.textContent = trace.status || 'NOT RUN';
+        state.className = `badge ${trace.status === 'SUCCESS' ? 'OBSERVED' : (trace.status === 'BLOCKED' ? 'UNKNOWN' : 'INFERRED')}`;
+      }
+      const summary = document.getElementById('redirect-trace-summary');
+      if (summary) summary.textContent = trace.error
+        ? `${trace.summary || 'Redirect trace did not complete.'} Error: ${trace.error}`
+        : (trace.summary || 'No redirect trace result is available.');
+      const initial = document.getElementById('redirect-trace-initial');
+      if (initial) initial.textContent = trace.initialUrl || http.initialUrl || '—';
+      const final = document.getElementById('redirect-trace-final');
+      if (final) final.textContent = trace.finalUrl || 'No final reachable URL observed';
+      const evidence = document.getElementById('redirect-trace-evidence');
+      if (evidence) evidence.innerHTML = trace.evidenceId
+        ? `<a href="#" onclick="switchView('evidence');return false" style="color:var(--blue);text-decoration:underline;">${esc(trace.evidenceId)} — open ledger</a>`
+        : 'No trace evidence recorded';
+      const limits = document.getElementById('redirect-trace-limitations');
+      if (limits) limits.textContent = (trace.limitations || ['Mode B did not launch Chromium, execute JavaScript, or inspect the full rendered webpage.']).join(' ');
+      const tbody = document.getElementById('redirect-trace-tbody');
+      if (tbody) {
+        const hops = trace.redirectChain || [];
+        tbody.innerHTML = hops.length ? hops.map(hop => {
+          const ipDetails = [];
+          if (hop.connectedIp) ipDetails.push(`connected: ${hop.connectedIp}`);
+          if (hop.destinationResolvedIps?.length) ipDetails.push(`redirect target validated: ${hop.destinationResolvedIps.join(', ')}`);
+          if (!ipDetails.length && hop.resolvedIps?.length) ipDetails.push(`validated: ${hop.resolvedIps.join(', ')}`);
+          const destination = hop.toUrl || hop.fromUrl || '—';
+          const headerSummary = Object.entries(hop.headers || {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'None captured';
+          const outcome = hop.blocked
+            ? `BLOCKED: ${hop.blockedReason || 'Destination rejected by policy'}`
+            : (hop.error
+              ? `FAILED: ${hop.error}`
+              : (hop.isFinal ? 'Final response received' : 'Redirect followed after validation'));
+          return `<tr>
+            <td>${hop.hop ?? '—'}</td>
+            <td style="max-width:300px;word-break:break-all;">${esc(hop.fromUrl || '—')}</td>
+            <td>${hop.status ? `HTTP ${hop.status} ${esc(hop.statusText || '')}` : (hop.policyStatus ? `POLICY ${hop.policyStatus}` : 'No response')}</td>
+            <td style="max-width:300px;word-break:break-all;">${esc(hop.location || destination)}</td>
+            <td>${esc(ipDetails.join(' · ') || 'Unavailable')}</td>
+            <td>${Number.isFinite(hop.latencyMs) ? `${hop.latencyMs} ms` : '—'}</td>
+            <td style="max-width:260px;word-break:break-word;">${esc(headerSummary)}</td>
+            <td>${esc(outcome)}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="8" class="empty-state">No HTTP redirect or response-hop observations were recorded.</td></tr>';
+      }
+    }
+  }
+
   // 5. WEBSITE INTELLIGENCE
   const page = schema.pageAnalysis;
   const pageNativeBanner = document.getElementById('page-native-banner');
@@ -1730,8 +2071,10 @@ function updateCaseUI(schema) {
   setHdrModeButtons(currentMode);
 
   const btnCancelLive = document.getElementById('btn-cancel-live');
+  const keepAliveActive = schema.liveInspection?.runtimeSessionActive === true &&
+    Number(schema.liveInspection?.runtimeSessionUntil || 0) > Date.now();
   if (btnCancelLive) {
-    if (currentMode === 'ISOLATED_LIVE' && (schema.status === 'RUNNING' || schema.status === 'ISOLATED_LIVE_AUTHORIZED')) {
+    if (currentMode === 'ISOLATED_LIVE' && (keepAliveActive || !['COMPLETED', 'INCOMPLETE', 'FAILED', 'BLOCKED'].includes(schema.status))) {
       btnCancelLive.style.display = 'inline-block';
     } else {
       btnCancelLive.style.display = 'none';
@@ -1746,20 +2089,46 @@ function updateCaseUI(schema) {
   const shotImg = document.getElementById('web-screenshot-img');
   const shotDl = document.getElementById('web-screenshot-dl-btn');
   const shotReason = document.getElementById('web-screenshot-reason');
+  const upgradeButton = document.getElementById('btn-upgrade-live-card');
+
+  updateScreenshotCountdown(schema);
 
   const hasShot = (schema.pageAnalysis?.screenshotAvailable || schema.liveInspection?.screenshotCaptured) && schema.id;
   if (hasShot) {
     if (shotBadge) {
-      shotBadge.textContent = 'CAPTURED BY ISOLATED CHROMIUM WORKER';
+      const initialOnly = !schema.liveInspection?.screenshotCaptured && Boolean(schema.initialScreenshotUrl);
+      shotBadge.textContent = schema.accessStatus === 'BLOCKED_HTTP_403'
+        ? `HTTP 403 RESPONSE DOCUMENT · ${schema.renderStatus || 'RENDER STATUS UNKNOWN'}`
+        : (initialOnly
+          ? `INITIAL VIEWPORT · ${schema.renderStatus || 'RENDER STATUS UNKNOWN'}`
+          : `CAPTURED BY ISOLATED CHROMIUM · ${schema.renderStatus || 'RENDER STATUS UNKNOWN'}`);
       shotBadge.style.background = 'rgba(168,85,247,0.2)';
       shotBadge.style.color = '#c084fc';
       shotBadge.style.borderColor = '#c084fc';
     }
     if (shotEmpty) shotEmpty.style.display = 'none';
     if (shotView) shotView.style.display = 'flex';
-    if (shotImg) shotImg.src = `/api/cases/${schema.id}/screenshot?t=${Date.now()}`;
+    if (shotImg) {
+      shotImg.onerror = () => {
+        if (shotView) shotView.style.display = 'none';
+        if (shotEmpty) shotEmpty.style.display = 'flex';
+        if (shotReason) shotReason.textContent = 'The case reports a screenshot, but its artifact could not be loaded. The capture remains unavailable for review.';
+        if (shotBadge) {
+          shotBadge.textContent = 'ARTIFACT UNAVAILABLE';
+          shotBadge.style.background = '#1e293b';
+          shotBadge.style.color = '#fbbf24';
+          shotBadge.style.borderColor = '#fbbf24';
+        }
+      };
+      const screenshotUrl = schema.liveInspection?.screenshotCaptured
+        ? (schema.screenshotArtifactUrl || `/api/cases/${schema.id}/screenshot`)
+        : (schema.initialScreenshotUrl || schema.screenshotArtifactUrl || `/api/cases/${schema.id}/screenshot`);
+      shotImg.src = `${screenshotUrl}${screenshotUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    }
     if (shotDl) {
-      shotDl.href = `/api/cases/${schema.id}/screenshot`;
+      shotDl.href = schema.liveInspection?.screenshotCaptured
+        ? (schema.screenshotArtifactUrl || `/api/cases/${schema.id}/screenshot`)
+        : (schema.initialScreenshotUrl || schema.screenshotArtifactUrl || `/api/cases/${schema.id}/screenshot`);
       shotDl.download = `trustlayer-case-${schema.id}-screenshot.png`;
     }
   } else {
@@ -1771,12 +2140,101 @@ function updateCaseUI(schema) {
     }
     if (shotEmpty) shotEmpty.style.display = 'flex';
     if (shotView) shotView.style.display = 'none';
+    if (upgradeButton) upgradeButton.style.display = schema.inspectionMode === 'ISOLATED_LIVE' ? 'none' : 'inline-block';
     if (shotReason) {
       if (schema.inspectionMode === 'ISOLATED_LIVE') {
-        shotReason.textContent = 'Live inspection was executed, but target page could not be rendered or server was unreachable.';
+        const statusInfo = describeInspectionStatus(schema);
+        shotReason.textContent = statusInfo.reason
+          ? `No screenshot was captured. ${statusInfo.reason}`
+          : 'No screenshot artifact was reported for this case. Check the live-inspection status and evidence ledger.';
       } else {
-        shotReason.textContent = 'Mode A (URL-Only) does not connect to target. Run Mode C (Isolated Live Inspection) to render page and capture browser preview.';
+        shotReason.textContent = schema.inspectionMode === 'MODE_B'
+          ? 'Redirect tracing does not launch a browser or capture a screenshot. Run Mode C (Isolated Live Inspection) to render the page.'
+          : 'Mode A is URL-only and does not connect to the target. Run Mode C (Isolated Live Inspection) to render the page and capture a screenshot.';
       }
+    }
+    if (schema.inspectionMode !== 'ISOLATED_LIVE' && upgradeButton) upgradeButton.style.display = 'inline-block';
+  }
+
+  // Render Screenshot Intelligence Extracted Clues Card
+  const ssIntelCard = document.getElementById('web-screenshot-intel-card');
+  const ssIntelBadge = document.getElementById('web-screenshot-intel-badge');
+  const ssIntelSummary = document.getElementById('web-screenshot-intel-summary');
+  const ssIntelClues = document.getElementById('web-screenshot-intel-clues');
+
+  const ssIntel = schema.screenshotIntelligence || schema.pageAnalysis?.screenshotIntelligence || null;
+  if (ssIntel && ssIntel.findings && ssIntel.findings.length > 0) {
+    if (ssIntelCard) ssIntelCard.style.display = 'block';
+    if (ssIntelBadge) {
+      ssIntelBadge.textContent = `${ssIntel.findings.length} CLUE(S) DETECTED`;
+      ssIntelBadge.style.color = '#c084fc';
+    }
+    if (ssIntelSummary) {
+      ssIntelSummary.textContent = ssIntel.summary || 'Screenshot OCR analysis complete.';
+    }
+    if (ssIntelClues) {
+      const extractedText = String(ssIntel.extractedText || '').trim();
+      const extractedTextBlock = extractedText
+        ? `<div style="background:#0b1220;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:10px 12px;color:var(--text-secondary);white-space:pre-wrap;max-height:220px;overflow:auto;margin-bottom:8px;"><strong style="color:var(--text-primary);">Text read from screenshot</strong><div style="margin-top:6px;">${esc(extractedText)}</div></div>`
+        : '';
+      ssIntelClues.innerHTML = extractedTextBlock + ssIntel.findings.map(f => {
+        const isEmbeddedOnly = f.source === 'SCREENSHOT_IMAGE_EMBEDDED';
+        const sourceBadge = isEmbeddedOnly
+          ? '<span class="badge" style="background:#581c87;color:#d8b4fe;border:1px solid #7e22ce;">🖼️ EMBEDDED IN IMAGE (NOT IN DOM)</span>'
+          : '<span class="badge" style="background:#064e3b;color:#34d399;border:1px solid #065f46;">🌐 CONFIRMED ACROSS DOM &amp; SCREENSHOT</span>';
+        const sevClass = f.isTestFixture ? 'badge MODEL' : `badge ${f.severity || 'HIGH'}`;
+        return `
+          <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:10px 12px;font-family:var(--font-mono);font-size:11px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div>
+                <strong style="color:var(--text-primary);">${esc(f.label)}</strong>
+                <span style="color:var(--text-muted);margin-left:6px;">[${esc(f.category)}]</span>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                ${sourceBadge}
+                <span class="${sevClass}">${esc(f.severity || 'INFO')}</span>
+              </div>
+            </div>
+            <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:6px 10px;color:#f8fafc;margin-bottom:6px;font-style:italic;">
+              "${esc(f.textSnippet)}"
+            </div>
+            <div style="font-size:10.5px;color:var(--text-secondary);display:flex;justify-content:space-between;">
+              <span>${esc(f.interpretation)}</span>
+              <span style="color:var(--text-muted);">Confidence: ${f.confidence}% • ID: ${f.id}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } else if (ssIntelCard) {
+    if (schema.inspectionMode === 'ISOLATED_LIVE') {
+      ssIntelCard.style.display = 'block';
+      const screenshotExists = Boolean(schema.pageAnalysis?.screenshotAvailable || schema.liveInspection?.screenshotCaptured || schema.initialScreenshotUrl);
+      const ocrCompleted = ssIntel?.status === 'SUCCESS';
+      const extractedText = String(ssIntel?.extractedText || '').trim();
+      if (ssIntelBadge) {
+        ssIntelBadge.textContent = !screenshotExists ? 'AWAITING SCREENSHOT'
+          : (!ssIntel ? 'OCR PENDING'
+          : (ssIntel.status !== 'SUCCESS' ? 'OCR UNAVAILABLE'
+          : (extractedText ? 'OCR COMPLETE · NO CLUES' : 'OCR COMPLETE · NO TEXT')));
+      }
+      if (ssIntelSummary) {
+        ssIntelSummary.textContent = !screenshotExists
+          ? 'No screenshot has been captured yet, so screenshot text analysis has not started.'
+          : (!ssIntel ? 'Screenshot captured. Local text recognition is still running.'
+          : (!ocrCompleted
+          ? `Screenshot captured, but local text recognition could not complete: ${ssIntel.error || 'No OCR result was returned.'}`
+          : (extractedText
+          ? 'Text recognition completed. No configured deception clues matched the text read from this screenshot.'
+          : 'Text recognition completed, but it found no readable text in the screenshot.')));
+      }
+      if (ssIntelClues) {
+        ssIntelClues.innerHTML = extractedText
+          ? `<div style="background:#0b1220;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:10px 12px;color:var(--text-secondary);white-space:pre-wrap;max-height:220px;overflow:auto;"><strong style="color:var(--text-primary);">Text read from screenshot</strong><div style="margin-top:6px;">${esc(extractedText)}</div></div>`
+          : `<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">${!screenshotExists ? 'Screenshot evidence will appear here after capture.' : (!ssIntel ? 'Screenshot captured; waiting for text recognition.' : (ocrCompleted ? 'OCR found no readable text to assess. Review the screenshot above for visual context.' : 'The screenshot is available above, but OCR did not produce text evidence.'))}</div>`;
+      }
+    } else {
+      ssIntelCard.style.display = 'none';
     }
   }
 

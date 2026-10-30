@@ -10,6 +10,7 @@
 
 import http from 'node:http';
 import net from 'node:net';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { URL } from 'node:url';
 import { SSRFGuard } from './ssrf_guard.js';
 
@@ -17,11 +18,18 @@ export class ControlledEgressProxy {
   constructor(options = {}) {
     this.allowedPorts = new Set(options.allowedPorts || [80, 443]);
     this._testBypassSsrf = options._testBypassSsrf || false;
+    this._policyToken = randomUUID();
+    this.requireAuth = options.requireAuth === true;
+    this.username = this.requireAuth ? (options.username || randomUUID()) : null;
+    this.password = this.requireAuth ? (options.password || randomUUID()) : null;
+    this._authorization = this.requireAuth
+      ? `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`
+      : null;
     this.blockedRequests = [];
     this.allowedRequests = [];
     this.server = null;
-    this.port = null;
-    this.host = '127.0.0.1';
+    this.port = Number.isInteger(options.port) ? options.port : null;
+    this.host = options.host || '127.0.0.1';
   }
 
   /**
@@ -37,13 +45,15 @@ export class ControlledEgressProxy {
         reject(err);
       });
 
-      this.server.listen(0, this.host, () => {
+      this.server.listen(this.port || 0, this.host, () => {
         const addr = this.server.address();
         this.port = addr.port;
         resolve({
           host: this.host,
           port: this.port,
-          proxyUrl: `http://${this.host}:${this.port}`
+          proxyUrl: `http://${this.host}:${this.port}`,
+          username: this.username,
+          password: this.password
         });
       });
     });
@@ -55,6 +65,12 @@ export class ControlledEgressProxy {
   async _handleHttpRequest(req, res) {
     const startTime = Date.now();
 
+    if (!this._isAuthorized(req.headers['proxy-authorization'])) {
+      res.writeHead(407, { 'Proxy-Authenticate': 'Basic realm="TrustLayer Egress"' });
+      res.end('Proxy authentication required');
+      return;
+    }
+
     // 1. Method restriction (Observation Mode Only — no state-changing operations)
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       const blockedItem = {
@@ -65,7 +81,7 @@ export class ControlledEgressProxy {
         type: 'MUTATING_REQUEST_BLOCKED'
       };
       this.blockedRequests.push(blockedItem);
-      res.writeHead(405, { 'Content-Type': 'application/json' });
+      res.writeHead(405, { 'Content-Type': 'application/json', 'X-TrustLayer-Egress-Policy': `${this._policyToken}:METHOD_BLOCKED` });
       res.end(JSON.stringify({ error: blockedItem.reason }));
       return;
     }
@@ -90,7 +106,7 @@ export class ControlledEgressProxy {
         type: 'PORT_DISALLOWED'
       };
       this.blockedRequests.push(blockedItem);
-      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.writeHead(403, { 'Content-Type': 'application/json', 'X-TrustLayer-Egress-Policy': `${this._policyToken}:PORT_BLOCKED` });
       res.end(JSON.stringify({ error: blockedItem.reason }));
       return;
     }
@@ -106,7 +122,7 @@ export class ControlledEgressProxy {
         type: 'SSRF_BLOCKED'
       };
       this.blockedRequests.push(blockedItem);
-      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.writeHead(403, { 'Content-Type': 'application/json', 'X-TrustLayer-Egress-Policy': `${this._policyToken}:DESTINATION_BLOCKED` });
       res.end(JSON.stringify({ error: `Egress Proxy Blocked: ${validation.blockedReason}` }));
       return;
     }
@@ -134,13 +150,15 @@ export class ControlledEgressProxy {
         url: targetUrl.href,
         status: upstreamRes.statusCode,
         targetIp,
+        resolvedIps: validation.resolvedIps,
+        destinationHost: targetUrl.hostname,
         durationMs: Date.now() - startTime
       });
     });
 
     upstreamReq.on('error', (err) => {
       if (!res.headersSent) {
-        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.writeHead(502, { 'Content-Type': 'application/json', 'X-TrustLayer-Egress-Policy': `${this._policyToken}:UPSTREAM_FAILED` });
         res.end(JSON.stringify({ error: `Upstream connection failed: ${err.message}` }));
       }
     });
@@ -152,6 +170,12 @@ export class ControlledEgressProxy {
    * Handle HTTPS CONNECT tunneling
    */
   async _handleHttpsConnect(req, clientSocket, head) {
+    const startTime = Date.now();
+    if (!this._isAuthorized(req.headers['proxy-authorization'])) {
+      clientSocket.write('HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm="TrustLayer Egress"\r\n\r\n');
+      clientSocket.destroy();
+      return;
+    }
     const [rawHost, portStr] = req.url.split(':');
     const port = parseInt(portStr, 10) || 443;
 
@@ -199,6 +223,9 @@ export class ControlledEgressProxy {
         method: 'CONNECT',
         url: req.url,
         targetIp,
+        destinationHost: rawHost,
+        resolvedIps: validation.resolvedIps,
+        durationMs: Date.now() - startTime,
         status: 200
       });
     });
@@ -210,6 +237,12 @@ export class ControlledEgressProxy {
     clientSocket.on('error', () => {
       upstreamSocket.destroy();
     });
+  }
+
+  _isAuthorized(value) {
+    if (!this.requireAuth) return true;
+    if (typeof value !== 'string' || !this._authorization || value.length !== this._authorization.length) return false;
+    return timingSafeEqual(Buffer.from(value), Buffer.from(this._authorization));
   }
 
   /**

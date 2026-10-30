@@ -25,10 +25,7 @@ const MODE_LIMITATIONS = {
     'The snapshot may not reflect the current live state of the site'
   ],
   ISOLATED_LIVE: [
-    'JavaScript execution was NOT available — static HTML analysis only',
-    'Dynamic content rendered by JavaScript (SPAs, lazy-loaded elements) is not captured',
-    'Browser-side network requests (XHR, JS fetch) are not directly observable',
-    'Visual deception techniques (CSS overlays, misleading styling) are not detected',
+    'Observation mode blocks mutating POST/PUT/DELETE requests to prevent credential transmission',
     'Cookie-based session state was not maintained'
   ]
 };
@@ -51,6 +48,9 @@ export class IntelligenceSummaryBuilder {
     const assessment = schema?.assessment || {};
     const urlAnalysis = schema?.urlAnalysis || {};
     const live = schema?.liveInspection || null;
+    const accessDenied = schema?.accessStatus === 'BLOCKED_HTTP_403' || live?.accessStatus === 'BLOCKED_HTTP_403' ||
+      Number(schema?.httpAnalysis?.statusCode || live?.httpStatus) === 403;
+    const ssIntel = schema?.screenshotIntelligence || page?.screenshotIntelligence || live?.screenshotIntelligence || null;
     const isLive = mode === 'ISOLATED_LIVE';
 
     // ── Q1: Identity & Purpose ──
@@ -79,6 +79,9 @@ export class IntelligenceSummaryBuilder {
       } else {
         whatIsThis += `Identity could not be independently verified. `;
       }
+      if (ssIntel?.indicators?.isSecurityTestFixture) {
+        whatIsThis += `🛡️ Confirmed Security Research / Demonstration Test Fixture (Google Safe Browsing). `;
+      }
       if (!isLive && !page?.title) {
         whatIsThis += `(No live page was fetched — identity based on URL analysis only.)`;
       }
@@ -101,6 +104,10 @@ export class IntelligenceSummaryBuilder {
         whatCanVisitorsDo = `Inferred purpose from page structure: ${intent}. No explicit call-to-action buttons detected.`;
       } else {
         whatCanVisitorsDo = 'No interactive actions detected on this page.';
+      }
+
+      if (ssIntel?.indicators?.hasFakeSoftwareUpdate) {
+        whatCanVisitorsDo += ` ⚠️ Screenshot intelligence observed deceptive software update / installation action triggers embedded in viewport graphics.`;
       }
     }
 
@@ -145,8 +152,12 @@ export class IntelligenceSummaryBuilder {
           whatInfoRequested += `⚠️ Password input field present. `;
         }
         if (hasSensitive) {
-          whatInfoRequested += `⚠️ Sensitive data fields detected (OTP, card, PIN, etc.).`;
+          whatInfoRequested += `⚠️ Sensitive data fields detected (OTP, card, PIN, etc.). `;
         }
+      }
+
+      if (ssIntel?.indicators?.hasCredentialsPrompt) {
+        whatInfoRequested += `⚠️ Viewport screenshot OCR confirmed credential prompts visible to users.`;
       }
     }
 
@@ -199,7 +210,7 @@ export class IntelligenceSummaryBuilder {
         if (iframeRequests.length) {
           networkActivity += `${iframeRequests.length} iframe(s) detected. `;
         }
-        networkActivity += `Note: Only static HTML-observable network references are listed; JavaScript-initiated requests were NOT captured.`;
+        networkActivity += `Note: Mutating requests blocked under observation policy.`;
       } else {
         if (requests.length) {
           networkActivity = `${requests.length} HTTP request(s) recorded during investigation. `;
@@ -230,6 +241,12 @@ export class IntelligenceSummaryBuilder {
           behaviourMatch += `✅ Claimed and observed purposes are consistent.`;
         }
       }
+
+      if (ssIntel?.indicators?.isSecurityTestFixture) {
+        behaviourMatch += ` 🛡️ Security demonstration fixture: Phishing indicators are part of an intentional Google Safe Browsing test page.`;
+      } else if (ssIntel?.indicators?.hasFakeSoftwareUpdate) {
+        behaviourMatch += ` ⚠️ Deceptive software update dialogs detected in screenshot.`;
+      }
     }
 
     // ── Q7: Suspicion indicators ──
@@ -252,10 +269,35 @@ export class IntelligenceSummaryBuilder {
       if (schema?.conflictDetected) {
         suspicionIndicators.push(`[MODEL_EVIDENCE_CONFLICT] ${schema.conflictReason}`);
       }
+
+      // Screenshot intelligence findings
+      if (ssIntel?.findings?.length) {
+        for (const f of ssIntel.findings) {
+          if (!f.isTestFixture) {
+            suspicionIndicators.push(`[SCREENSHOT_INTELLIGENCE] ${f.label}: "${f.textSnippet}" (${f.source}, Confidence: ${f.confidence}%) (Evidence: ${f.id})`);
+          } else {
+            suspicionIndicators.push(`[SECURITY_TEST_FIXTURE] ${f.label}: "${f.textSnippet}" (Evidence: ${f.id})`);
+          }
+        }
+      }
     }
 
     // ── Q8: Not inspected ──
     const notInspected = [...(assessment?.limitations || []), ...modeLimitations];
+    if (accessDenied) {
+      whatIsThis = `The endpoint returned HTTP 403. A screenshot of the access-denial response was captured, but the target website's identity and purpose could not be assessed.`;
+      whatCanVisitorsDo = 'Target website functionality could not be observed because the endpoint returned an access-denial response.';
+      whatInfoRequested = 'Not assessed: the captured 403 response does not establish what information the target website requests.';
+      whereCouldItGo = 'Not assessed: the target website and its form destinations were unavailable behind the HTTP 403 response.';
+      networkActivity = `The isolated browser received HTTP 403 at ${live?.finalUrl || schema?.httpAnalysis?.finalUrl || 'the requested URL'}. The screenshot documents the response page, not the target website content.`;
+      behaviourMatch = 'Not assessed: the target website purpose could not be compared with observed page behavior.';
+      for (let index = suspicionIndicators.length - 1; index >= 0; index--) {
+        if (/^\[(SCREENSHOT_INTELLIGENCE|SECURITY_TEST_FIXTURE)\]/.test(suspicionIndicators[index])) {
+          suspicionIndicators.splice(index, 1);
+        }
+      }
+      notInspected.push('Target page content, forms, and functional intent could not be assessed because HTTP 403 was returned.');
+    }
     // Deduplicate
     const notInspectedUniq = [...new Set(notInspected)];
 

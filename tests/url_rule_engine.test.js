@@ -20,6 +20,8 @@ describe('URL Rule Engine & Deterministic Risk Aggregator', () => {
     const result = URLRuleEngine.evaluate(parsed, ext.features);
 
     assert.strictEqual(result.classification, 'SAFE');
+    assert.strictEqual(result.verdict, 'SAFE');
+    assert.strictEqual(result.explanation.includes('No suspicious'), true);
     assert.ok(result.ruleScore <= 24, `Expected score <= 24, got ${result.ruleScore}`);
     assert.strictEqual(result.rulesTriggered.length, 0);
   });
@@ -42,6 +44,7 @@ describe('URL Rule Engine & Deterministic Risk Aggregator', () => {
     assert.ok(ipRule, 'URL-RULE-001 should trigger on IP address');
     assert.strictEqual(ipRule.weight, 35);
     assert.ok(result.ruleScore >= 35);
+    assert.strictEqual(result.verdict, result.classification);
   });
 
   it('triggers URL-RULE-002 on Punycode/IDN homoglyph domain', () => {
@@ -60,11 +63,25 @@ describe('URL Rule Engine & Deterministic Risk Aggregator', () => {
     const result = URLRuleEngine.evaluate(parsed, ext.features);
 
     assert.strictEqual(result.classification, 'PHISHING');
+    assert.strictEqual(result.verdict, 'PHISHING');
     assert.ok(result.ruleScore >= 60, `Expected score >= 60, got ${result.ruleScore}`);
 
     const ruleIds = result.rulesTriggered.map(r => r.ruleId);
     assert.ok(ruleIds.includes('URL-RULE-005') || ruleIds.includes('URL-RULE-006') || ruleIds.includes('URL-RULE-011'),
       'Should trigger brand, keyword, or TLD rules');
+  });
+
+  it('returns UNDER_REVIEW when URL feature extraction is incomplete', () => {
+    const result = URLRuleEngine.evaluate({}, {});
+    assert.strictEqual(result.verdict, 'UNDER_REVIEW');
+    assert.strictEqual(result.classification, 'UNDER_REVIEW');
+    assert.match(result.explanation, /incomplete|missing/i);
+  });
+
+  it('returns UNDER_REVIEW for a warning-level rule result', () => {
+    const result = URLRuleEngine.evaluate({}, { has_brand_token_mismatch: 1 });
+    assert.strictEqual(result.ruleScore, 25);
+    assert.strictEqual(result.verdict, 'UNDER_REVIEW');
   });
 
   it('triggers URL-RULE-007 on user-info @ symbol injection', () => {

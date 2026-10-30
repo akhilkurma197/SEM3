@@ -1,0 +1,15 @@
+# The isolated worker image only needs these runtime sources and manifests.
+# Excluding the rest keeps per-inspection image rebuilds from uploading the
+# full application, node_modules, screenshots, and local model artifacts.
+**
+!worker/
+!worker/Dockerfile
+!worker/browser_worker.js
+!worker/egress_proxy_worker.js
+!worker/package.json
+!worker/package-lock.json
+!worker/chromium-seccomp.json
+!core/
+!core/investigators/
+!core/investigators/egress_proxy.js
+!core/investigators/ssrf_guard.js

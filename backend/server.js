@@ -57,14 +57,24 @@ app.use(express.static(rootDir));
  * Create and execute a new forensic investigation case
  */
 app.post('/api/cases', async (req, res) => {
-  const { target, targetType, expectedContext, inspectionMode } = req.body || {};
+  const { target, targetType, expectedContext, inspectionMode, consentConfirmed, captureDelayMs } = req.body || {};
   if (!target || typeof target !== 'string') {
     return res.status(400).json({ error: 'Field "target" is required.' });
   }
 
   const cleanTarget = target.trim();
   const selectedMode = inspectionMode || INSPECTION_MODE.URL_ONLY;
+  if (selectedMode === INSPECTION_MODE.ISOLATED_LIVE && captureDelayMs !== undefined && ![0, 5000, 10000].includes(captureDelayMs)) {
+    return res.status(400).json({ error: 'captureDelayMs must be 0, 5000, or 10000.' });
+  }
+  if ([INSPECTION_MODE.MODE_B, INSPECTION_MODE.ISOLATED_LIVE].includes(selectedMode) && consentConfirmed !== true) {
+    return res.status(400).json({ error: 'Explicit consent is required before active HTTP tracing or isolated live inspection.' });
+  }
   const icase = InvestigationEngine.createCase(cleanTarget, targetType || 'URL', selectedMode);
+  icase.schema.captureDelayMs = selectedMode === INSPECTION_MODE.ISOLATED_LIVE ? (captureDelayMs ?? 10000) : 10000;
+  icase.schema.screenshotCapture.captureDelayMs = icase.schema.captureDelayMs;
+  if (selectedMode === INSPECTION_MODE.MODE_B) icase.schema.modeBConsentAt = Date.now();
+  if (selectedMode === INSPECTION_MODE.ISOLATED_LIVE) icase.schema.modeCConsentAt = Date.now();
   if (expectedContext) {
     icase.schema.expectedContext = expectedContext;
   }
@@ -106,12 +116,22 @@ app.post('/api/cases/:id/live-inspect', async (req, res) => {
     return res.status(404).json({ error: 'Case not found' });
   }
 
-  const { consentConfirmed } = req.body || {};
+  const { consentConfirmed, captureDelayMs } = req.body || {};
   if (!consentConfirmed) {
     return res.status(400).json({ error: 'Explicit user consent is required to execute live inspection.' });
   }
+  if (captureDelayMs !== undefined && ![0, 5000, 10000].includes(captureDelayMs)) {
+    return res.status(400).json({ error: 'captureDelayMs must be 0, 5000, or 10000.' });
+  }
 
   icase.schema.inspectionMode = INSPECTION_MODE.ISOLATED_LIVE;
+  icase.schema.captureDelayMs = captureDelayMs ?? icase.schema.captureDelayMs ?? 10000;
+  icase.schema.screenshotCapture = { status: 'STARTING', captureDelayMs: icase.schema.captureDelayMs,
+    countdownStartedAt: null, countdownEndsAt: null, capturedAt: null };
+  // A reinspection must leave the previous terminal state immediately so SSE/UI
+  // consumers can show live progress instead of retaining stale INCOMPLETE.
+  icase.schema.status = CASE_STATE.NORMALIZING;
+  icase.schema.completedAt = null;
   icase._abortController = new AbortController();
   icase._abortSignal = icase._abortController.signal;
   icase.log('OPERATOR AUTHORIZED: Upgrading case to Mode C (Isolated Live Inspection)');
@@ -143,8 +163,13 @@ app.post('/api/cases/:id/cancel-live', (req, res) => {
   if (icase._abortController) {
     icase._abortController.abort();
   }
-  icase.schema.status = CASE_STATE.INCOMPLETE;
-  icase.log('LIVE INSPECTION CANCELLED BY OPERATOR', 'warn');
+  const wasCompleted = icase.schema.status === CASE_STATE.COMPLETED;
+  if (icase.schema.liveInspection) {
+    icase.schema.liveInspection.runtimeSessionActive = false;
+    icase.schema.liveInspection.runtimeSessionEndedAt = Date.now();
+  }
+  if (!wasCompleted) icase.schema.status = CASE_STATE.INCOMPLETE;
+  icase.log(wasCompleted ? 'LIVE BROWSER SESSION STOPPED BY OPERATOR' : 'LIVE INSPECTION CANCELLED BY OPERATOR', 'warn');
   icase.emit('complete', icase.schema);
 
   res.json({ message: 'Live inspection cancelled', caseId: icase.id });
@@ -253,9 +278,15 @@ app.get('/api/cases/:id/screenshot', (req, res) => {
 
   // 3. Resolve path strictly within approved storage root
   const storageRoot = path.resolve(rootDir, 'data', 'screenshots');
-  const shotPath = path.resolve(storageRoot, `${caseId}.png`);
+  const shotFileName = req.query.type === 'initial' ? `${caseId}-initial.png` : `${caseId}.png`;
+  let shotPath = path.resolve(storageRoot, shotFileName);
   if (!shotPath.startsWith(storageRoot + path.sep)) {
     return res.status(403).json({ error: 'Access denied: Path traversal detected' });
+  }
+
+  // Fallback to primary screenshot if initial checkpoint doesn't exist
+  if (!fs.existsSync(shotPath) && req.query.type === 'initial') {
+    shotPath = path.resolve(storageRoot, `${caseId}.png`);
   }
 
   if (!fs.existsSync(shotPath)) {
@@ -291,7 +322,7 @@ app.get('/console', (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🛡️  Trust Layer — Unified Forensic Investigation Platform`);
   console.log(`   Server listening at http://localhost:${PORT}`);
   console.log(`   Unified SPA:     http://localhost:${PORT}/`);

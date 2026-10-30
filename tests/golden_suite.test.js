@@ -143,7 +143,9 @@ describe('Golden Test Suite — End-to-End Investigation Engine', () => {
     assert.equal(icase.schema.urlAnalysis.hostname, 'google.com');
     assert.notEqual(icase.schema.urlAnalysis.hostname, 'https');
     assert.equal(icase.riskLevel, 'LOW');
-    assert.equal(icase.schema.assessment.verificationState, 'EVIDENCE_SUFFICIENT');
+    assert.equal(icase.schema.assessment.verificationState, 'UNVERIFIED');
+    assert.equal(icase.schema.httpAnalysis.status, 'NOT_RUN');
+    assert.equal(icase.schema.pageAnalysis.status, 'NOT_RUN');
     assert.ok(icase.evidence.length >= 3);
   });
 

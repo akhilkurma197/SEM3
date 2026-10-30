@@ -32,6 +32,7 @@ export class URLRuleEngine {
       return {
         ruleScore: 0,
         classification: 'UNDER_REVIEW',
+        verdict: 'UNDER_REVIEW',
         rulesEvaluated: [],
         rulesTriggered: [],
         categoryBreakdown: {},
@@ -68,6 +69,7 @@ export class URLRuleEngine {
     return {
       ruleScore: aggregateResult.score,
       classification: aggregateResult.classification,
+      verdict: aggregateResult.classification,
       rulesEvaluated,
       rulesTriggered: triggered,
       categoryBreakdown: aggregateResult.categoryBreakdown,
@@ -137,9 +139,10 @@ export class URLRuleEngine {
         const hyphens = features.num_hyphens ?? 0;
         const specRatio = features.special_char_ratio ?? 0;
         const urlLen = features.url_length ?? 0;
+        const hasBrandMismatch = (features.has_brand_token_mismatch ?? 0) === 1;
         observedValue = `hyphens=${hyphens}, special_ratio=${specRatio}`;
-        // High hyphens (>=3 in host) or heavy non-alphanumeric punctuation in longer paths
-        triggered = (hyphens >= 3) || (specRatio > 0.25 && urlLen > 45);
+        // High hyphens (>=3 in host, or >=2 combined with brand token mismatch) or heavy punctuation
+        triggered = (hyphens >= 3) || (hyphens >= 2 && hasBrandMismatch) || (specRatio > 0.25 && urlLen > 45);
         break;
 
       case 'URL-RULE-011': // SUSPICIOUS_REGISTRATION_TLD
